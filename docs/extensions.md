@@ -1,6 +1,6 @@
 # 扩展 SLA
 
-SLA 0.2 复用 DSH 的 Cordis 插件、服务和 Skill。核心提供文件候选快照、实验调度、证据保存、暂停恢复和采用；任务扩展提供调查指引、可执行评价与比较规则。当前候选是本机文件项目，不提供远程系统或数据库的快照适配器。
+SLA 0.3 复用 DSH 的 Cordis 插件、服务和 Skill。核心提供文件候选快照、实验调度、证据保存、暂停恢复和采用；任务扩展提供调查指引、可执行评价与比较规则。当前候选是本机文件项目，不提供远程系统或数据库的快照适配器。
 
 ## 方法扩展：DSH Skill
 
@@ -42,3 +42,11 @@ export function apply(ctx) {
 同 id 重复注册失败。扩展卸载会取消其活动调用；恢复或采用时找不到同一 id/version 则停止，保留记录，不自动替换规则。升级有行为变化的扩展必须提升版本；同版本源码真实性由包管理与开发者负责。0.1 历史记录明确绑定 `code-performance@1.0.0`，保持旧评价文件。
 
 持久化和界面继续复用 DSH；Token 明细使用宿主原有入口。本版不新增计费账本、额度预留或任务扩展管理界面。
+
+## 可选独立审查
+
+`review` 提供 `schema`、`prompt(run, context)` 和 `evaluate({cwd, signal, criteria, execute, check})`。`context` 给出 `phase`、允许新增文件的 `checkDirectory`、只读 `originalDirectory` 和此前实际失败；结构化结果为 `{hasChecks, summary}`，说明要保护的行为及其与目标修正的关系。新增文件只能位于 `.sla/<checkDirectory>/`。
+
+`evaluate` 返回 `{passed:boolean, summary:string}`，不要复用缺陷基线的 `valid`。完整例子见 [`extensions/code-review.js`](../extensions/code-review.js)；Node 命令属于这个代码任务方法，核心不要求此运行时。新增检查会在初始项目和候选上独立执行，纳入后每次评价继续执行。核心把补充检查通过与任务 `valid` 合并为最终有效性，并在 `supplementaryChecks` 中记录结果，任务扩展不应占用这个字段。
+
+任务可以不提供 review；这表示没有独立审查能力，不是审查通过。默认代码任务因新增审查语义升级为 `1.1.0`。发布、恢复与候选身份规则见[核心规则](core.md)。

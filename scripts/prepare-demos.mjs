@@ -8,8 +8,8 @@ export const inject = ['workspaceRegistry'];
 export async function apply(ctx) {
   const projects = [];
   for (const [source, folder, title] of [
-    ['clamp-bug', 'clamp-repair-demo', 'SLA 0.2 · 缺陷修复'],
-    ['duplicates-baseline', 'performance-extension-demo', 'SLA 0.2 · 代码性能'],
+    ['clamp-bug', 'clamp-review-demo-v03', 'SLA 0.3 · 自动审查'],
+    ['duplicates-baseline', 'performance-epoch-demo-v03', 'SLA 0.3 · 多方向探索'],
   ]) {
     const cwd = path.join(os.homedir(), '.dsh', 'sla-artifacts', folder);
     try { await access(cwd); }
@@ -17,7 +17,7 @@ export async function apply(ctx) {
     const project = await ctx.workspaceRegistry.create(cwd, title);
     projects.push({ id: project.id, cwd, title });
   }
-  const output = fileURLToPath(new URL('../artifacts/extensibility/live/', import.meta.url));
+  const output = fileURLToPath(new URL('../artifacts/epoch/live/', import.meta.url));
   await mkdir(output, { recursive: true });
   await writeFile(path.join(output, 'workspaces.json'), JSON.stringify(projects, null, 2));
 }

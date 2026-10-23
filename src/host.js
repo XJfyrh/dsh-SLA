@@ -16,7 +16,7 @@ const runSchema = z.object({
   attempts: z.number().int().nonnegative(), notes: z.array(z.string()),
 }).passthrough();
 const domain = defineDomain({ name: 'sla_exploration', version: 1, tables: { runs: domainTable(runSchema) } });
-const actionSchema = z.object({ action: z.enum(['start', 'pause', 'resume', 'steer', 'stop', 'adopt']), text: z.string().trim().max(12000).optional() }).strict();
+const actionSchema = z.object({ action: z.enum(['start', 'pause', 'resume', 'steer', 'stop', 'adopt', 'configure', 'review']), text: z.string().trim().max(12000).optional(), settings: z.object({ maxTrials: z.number().int().min(1).max(100).optional(), maxMinutes: z.number().int().min(1).max(240).optional(), directions: z.number().int().min(1).max(4).optional(), localTrials: z.number().int().min(1).max(5).optional() }).strict().optional() }).strict();
 function view(run) {
   if (!run) return null;
   const { sourceFiles, ...rest } = run;

@@ -8,9 +8,10 @@ export class TaskRegistry {
     for (const key of ['evaluate', 'validateBaseline', 'compare']) if (typeof task[key] !== 'function') throw new Error('任务扩展缺少 ' + key);
     if (!task.prepare?.schema || typeof task.prepare.prompt !== 'function') throw new Error('任务扩展缺少 prepare');
     if (task.complete !== undefined && typeof task.complete !== 'function') throw new Error('complete 必须是函数');
+    if (task.review !== undefined && (!task.review.schema || typeof task.review.prompt !== 'function' || typeof task.review.evaluate !== 'function')) throw new Error('review 需要 schema、prompt 和 evaluate');
     if (this.entries.has(task.id)) throw new Error('任务扩展重复注册：' + task.id);
     const controller = new AbortController();
-    const definition = Object.freeze({ ...task, prepare: Object.freeze({ ...task.prepare, schema: structuredClone(task.prepare.schema) }) });
+    const definition = Object.freeze({ ...task, prepare: Object.freeze({ ...task.prepare, schema: structuredClone(task.prepare.schema) }), ...(task.review ? { review: Object.freeze({ ...task.review, schema: structuredClone(task.review.schema) }) } : {}) });
     const entry = { task: definition, signal: controller.signal };
     this.entries.set(task.id, entry);
     return () => {

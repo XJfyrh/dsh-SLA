@@ -1,6 +1,7 @@
 import { intro, scoutSchema } from '../src/prompts.js';
 import { parseResult } from '../src/evaluation.js';
 import { validateEvaluation } from '../src/task-registry.js';
+import { preservedBehaviorReview } from './code-review.js';
 
 function scoutPrompt(run) {
   return `${intro(run)}
@@ -19,9 +20,10 @@ export function parseEvaluation(result) {
 }
 
 export const performanceTask = {
-  id: 'code-performance', version: '1.0.0', name: '代码性能',
+  id: 'code-performance', version: '1.1.0', name: '代码性能',
   description: '改善可运行代码的耗时、内存或其他可测量成本；保持正确行为。适用于明确的速度、资源或效率目标。',
   prepare: { schema: scoutSchema, prompt: scoutPrompt },
+  review: preservedBehaviorReview('代码性能'),
   instructions: '保持已有正确行为；用固定正确性检查和目标测量验证，数值越小越好。',
   async evaluate({ execute }) { return parseEvaluation(await execute('node .sla/evaluate.mjs')); },
   validateBaseline(result) { if (!result.valid) throw new Error('初始项目未通过建立的正确性检查：' + result.summary); },

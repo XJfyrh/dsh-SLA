@@ -1,4 +1,4 @@
-import { readdir, readFile, writeFile, mkdir, copyFile, lstat, realpath, rm, rename } from 'node:fs/promises';
+import { readdir, readFile, writeFile, mkdir, lstat, realpath, rm, rename } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
@@ -116,9 +116,10 @@ export async function verifyEvaluation(root, files) {
   }
 }
 
-export async function adopt(run, authorize = async () => {}) {
+export async function adopt(run, authorize = async () => {}, expectedCandidateFiles) {
   const before = run.sourceFiles;
   const after = await inventory(run.best.dir);
+  if (expectedCandidateFiles && changedFiles(expectedCandidateFiles, after).length) throw new Error('复验后候选内容已改变，未采用');
   const current = await inventory(run.cwd);
   if (changedFiles(before, current).length) throw new Error('原项目已修改，未采用。请查看候选后手动合并。');
   const names = changedFiles(before, after);
@@ -146,8 +147,10 @@ export async function adopt(run, authorize = async () => {}) {
       await authorize();
       const dest = path.join(run.cwd, name);
       if (after[name]) {
+        const bytes = await readFile(path.join(run.best.dir, name));
+        if (digest(bytes) !== after[name]) throw new Error(`写回前候选文件已改变：${name}`);
         await mkdir(path.dirname(dest), { recursive: true });
-        await copyFile(path.join(run.best.dir, name), dest);
+        await writeFile(dest, bytes);
       } else await rm(dest);
     }
     for (const name of names) {

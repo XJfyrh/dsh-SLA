@@ -11,7 +11,7 @@ import { performanceTask } from '../extensions/performance.js';
 import { inventory, snapshot } from '../src/workspace.js';
 
 export const inject = ['sla', 'agents', 'agentPresets', 'tools', 'llm', 'skills'];
-const root = fileURLToPath(new URL('../artifacts/extensibility/researcher/', import.meta.url));
+const root = fileURLToPath(new URL('../artifacts/epoch/researcher/', import.meta.url));
 const shellName = process.platform === 'win32' ? 'pwsh' : 'bash';
 const requiredTools = ['read', 'write', 'edit', 'glob', 'grep', shellName, 'skill'];
 
@@ -115,6 +115,16 @@ async function verify(ctx) {
     assert.deepEqual(result, { ok: true });
     assert.equal(results.length, 7);
     assert.ok(results.every(result => !result.isError), JSON.stringify(results));
+    for (const role of ['advisor', 'reviewer']) {
+      adapter.queue.push(options => {
+        assert.ok(JSON.stringify(options).includes(role === 'advisor' ? '只读规划下一轮' : '只独立审查评价遗漏'), `${role} boundary missing`);
+        const submit = options.tools.find(item => item.parameters?.properties?.ok);
+        assert.ok(submit);
+        return tool(submit.name, { ok: true });
+      });
+      const value = await ctx.sla.invoke({ parent: parent.agent, role, cwd, prompt: 'Submit the scripted role result.', schema: { type: 'object', properties: { ok: { type: 'boolean' } }, required: ['ok'], additionalProperties: false }, signal: AbortSignal.timeout(60000), onStarted });
+      assert.deepEqual(value, { ok: true });
+    }
     for (let index = 1; index <= 2; index++) assert.ok(results[index * 2 - 1].content.some(block => block.text?.includes(`private-child-${index}`)));
     assert.equal(ctx.sla.researchOwners.size, 0);
     assert.equal(ctx.sla.calls.size, 0);
@@ -128,7 +138,7 @@ async function verify(ctx) {
     assert.equal(ctx.sla.calls.size, 0);
     assert.equal(ctx.sla.researchOwners.size, 0);
     assert.deepEqual(ctx.sla.tasks.list().map(task => task.id).sort(), ['code-bugfix', 'code-performance']);
-    const external = { ...performanceTask, id: 'host-extension-probe', name: 'Host extension probe' };
+    const external = { ...performanceTask, review: undefined, id: 'host-extension-probe', name: 'Host extension probe' };
     const plugin = { name: 'sla-extension-probe', inject: ['sla'], apply(scope) { scope.effect(() => scope.sla.registerTask(external)); } };
     const fiber = ctx.plugin(plugin); await fiber;
     const entry = ctx.sla.tasks.get(external);

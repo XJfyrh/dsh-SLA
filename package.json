@@ -1,14 +1,47 @@
 {
   "name": "dsh-sla",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "从一句目标开始，自主建立依据并持续探索项目改进。",
-  "engines": { "node": ">=24", "dsh": "0.2.1-rc.2" },
-  "exports": { ".": "./src/host.js", "./tools": "./src/tools.js", "./performance": "./extensions/performance.js", "./bugfix": "./extensions/bugfix.js", "./extension": { "types": "./src/extension.d.ts", "default": "./src/evaluation.js" }, "./client": "./client.js", "./locale/*.json": "./locale/*.json", "./icon": "./icon.svg" },
-  "files": ["src", "extensions", "client.js", "cordis.patch.yml", "locale", "icon.svg", "README.md", "docs", "examples", "scripts", "test"],
-  "scripts": { "test": "node --test test/*.test.js examples/*/*.test.js", "check": "node scripts/check.mjs", "build:client": "node scripts/build-client.mjs" },
-  "dependencies": { "zod": "4.1.12" },
+  "engines": {
+    "node": ">=24",
+    "dsh": "0.2.1-rc.2"
+  },
+  "exports": {
+    ".": "./src/host.js",
+    "./tools": "./src/tools.js",
+    "./performance": "./extensions/performance.js",
+    "./bugfix": "./extensions/bugfix.js",
+    "./extension": {
+      "types": "./src/extension.d.ts",
+      "default": "./src/evaluation.js"
+    },
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "src",
+    "extensions",
+    "client.js",
+    "cordis.patch.yml",
+    "locale",
+    "icon.svg",
+    "README.md",
+    "docs",
+    "examples",
+    "scripts",
+    "test"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.js examples/*/*.test.js",
+    "check": "node scripts/check.mjs",
+    "build:client": "node scripts/build-client.mjs"
+  },
+  "dependencies": {
+    "zod": "4.1.12"
+  },
   "peerDependencies": {
     "@deepseek-ai/cordis": "4.0.5",
     "@deepseek-ai/dsh-llm": "0.2.1-rc.2",
@@ -24,7 +57,18 @@
     "@deepseek-ai/dsh-typert-protocol": "0.2.1-rc.2"
   },
   "dsh": {
-    "bundle": { "patch": "./cordis.patch.yml" },
-    "client": { "platform": "web", "immediately": true, "inject": ["@deepseek-ai/dsh-client-ui-conversation", "@deepseek-ai/dsh-client-ui-chat", "@deepseek-ai/dsh-client-ui-sidebar-right", "@deepseek-ai/dsh-api-remotes"] }
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-chat",
+        "@deepseek-ai/dsh-client-ui-sidebar-right",
+        "@deepseek-ai/dsh-api-remotes"
+      ]
+    }
   }
 }

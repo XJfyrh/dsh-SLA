@@ -27,6 +27,11 @@ export interface TaskDefinition {
   validateBaseline(result: Evaluation, criteria: Criteria): void | Promise<void>;
   compare(candidate: Evaluation, reference: Evaluation, criteria: Criteria): Comparison;
   complete?(candidate: Evaluation, criteria: Criteria): boolean;
+  review?: {
+    schema: Record<string, unknown>;
+    prompt(run: RunContext, context: { phase: 'baseline' | 'candidate'; checkDirectory: string; originalDirectory: string; previousFailures: string[] }): string;
+    evaluate(input: { cwd: string; signal: AbortSignal; criteria: Criteria; execute(command: string): Promise<CommandResult>; check: { id: string; directory: string; summary: string } }): Promise<{ passed: boolean; summary: string }>;
+  };
 }
 export interface SlaExtensionService { registerTask(task: TaskDefinition): () => void }
 declare module '@deepseek-ai/cordis' { interface Context { sla: SlaExtensionService } }

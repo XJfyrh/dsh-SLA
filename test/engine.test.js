@@ -33,7 +33,7 @@ async function fixture(options = {}) {
         await writeFile(path.join(args.cwd, '.sla', 'evaluate.mjs'), `import fs from 'node:fs'; const v=JSON.parse(fs.readFileSync('candidate.json')); console.log('SLA_RESULT '+JSON.stringify({...v,summary:'fixture checks'}));`);
         return { title: 'fixture', criterion: 'lower score with valid checks', unit: 'operations', ready: true, reason: '' };
       }
-      if (args.role === 'advisor') return { hypothesis: 'direction ' + (trial + 1), instructions: 'change', stop: false, reason: '' };
+      if (args.role === 'advisor') return { assignments: [{ direction: 'test-direction', hypothesis: 'direction ' + (trial + 1), instructions: 'change', evidenceTrials: [] }], stop: false, reason: '' };
       const results = options.results ?? [{ score: 90, valid: true }, { score: 1, valid: false }, { score: 110, valid: true }];
       const value = results[trial++ % results.length];
       await writeFile(path.join(args.cwd, 'candidate.json'), JSON.stringify(value));
@@ -45,8 +45,10 @@ async function fixture(options = {}) {
     },
   };
   const tasks = new TaskRegistry();
-  const unregister = tasks.register(options.task ?? performanceTask);
-  const engine = new ExplorationEngine({ store, adapter, tasks, root: path.join(root, 'runs') });
+  // These existing lifecycle tests exercise a task without the optional review
+  // capability. Epoch/review acceptance has its own fixtures and failure cases.
+  const unregister = tasks.register({ ...(options.task ?? performanceTask), review: undefined });
+  const engine = new ExplorationEngine({ store, adapter, tasks, root: path.join(root, 'runs'), maxTrials: 3, directions: 1, localTrials: 1 });
   return { root, cwd, engine, store, calls, adapter, tasks, unregister };
 }
 async function settle(engine) { while (engine.active.size) await Promise.all([...engine.active.values()].map(x => x.promise)); }
@@ -246,7 +248,7 @@ test('unloading an extension cancels its active work and same version can resume
   f.tasks.register({ ...performanceTask, version: '2.0.0' });
   await f.engine.action(parent, { action: 'resume' }); await settle(f.engine);
   assert.match(f.engine.get(parent.id).message, /版本不一致/);
-  const fresh = new TaskRegistry(); fresh.register(performanceTask); f.engine.tasks = fresh; block = false;
+  const fresh = new TaskRegistry(); fresh.register({ ...performanceTask, review: undefined }); f.engine.tasks = fresh; block = false;
   await f.engine.action(parent, { action: 'resume' }); await settle(f.engine);
   assert.equal(f.engine.get(parent.id).status, 'completed');
   assert.equal(f.calls.filter(x => x.role === 'selector').length, 1);
