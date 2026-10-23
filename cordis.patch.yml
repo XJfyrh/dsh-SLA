@@ -1,0 +1,37 @@
+- insert:
+    - id: sla
+      name: dsh-sla
+    - id: preset-sla
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: sla
+        name: 持续探索 · SLA
+        description: 一句话启动，自主建立依据并持续尝试改进
+        order: 2
+        plugins:
+          - id: sla-control
+            name: dsh-sla/tools
+    - id: preset-sla-researcher
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: sla-researcher
+        name: SLA 实验执行
+        description: 由持续探索调用的独立实验会话
+        order: 99
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: You are a research agent completing one bounded SLA invocation. Follow the supplied role and workspace boundaries.
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+            config:
+              sampleOverCapGlobResults: false
+          - id: tool-pwsh
+            name: '@deepseek-ai/dsh-tool-pwsh'
+            disabled: !!js process.platform !== 'win32'
+          - id: tool-bash
+            name: '@deepseek-ai/dsh-tool-bash'
+            disabled: !!js process.platform === 'win32'

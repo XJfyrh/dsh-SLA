@@ -1,0 +1,40 @@
+# SLA 最小版本
+
+一句目标启动；系统发现项目、建立评价依据、提出方向、修改候选并运行检查。用户只通过对话表达约束，界面展示当前依据、实验结果、暂停/继续和采用。
+
+首版采用串行多轮，先验证反馈闭环。Host 拥有持久状态；调查、规划、执行分别调用全新 spawn 子会话，不继承主对话。项目快照承接候选；评价脚本在调查后固定，插件独立执行。未通过正确性或未完成评估的尝试不能成为最佳候选。主项目只在用户采用且源文件未变时写入。
+
+## 实施顺序与验收
+
+1. 新版 Web 中安装 bundle，验证原生 slot、Host/Client 调用和模式注册。
+2. 从自然语言建立项目快照与可执行检查；真实子会话完成多轮尝试并由实际检查选择结果。
+3. 验证补充约束、暂停/继续、重启恢复和采用冲突；通过 Web 完整操作并保存证据。
+
+默认最多 3 次尝试、20 分钟；每次子会话另设步骤上限。时间和轮次是运行上限，不宣称为费用硬限。进程重启后保留证据并暂停，用户继续才调度。Windows 的文件策略不构成读隔离或网络隔离。
+
+## 实现中确认的边界
+
+- 新版 `spawn` 的 `cwd` 改变工作目录，权限根仍来自父会话不可变的 `header.cwd`。因此每次调用先创建一个不执行模型的临时 owner，将其 `cwd` 设为当前快照，再从这个 owner 创建 fresh spawn。调用结束或取消后，按 child、owner 的顺序释放。
+- 每次调查将评价目录冻结到唯一目录，保存所有辅助文件的 SHA-256。Worker 无评价文件；Host 在另一个副本中重放评价。结果解析失败、超时、截断、错误退出及正确性失败分别留下证据，不获得有效最佳分数。
+- 新约束使旧依据失效，旧候选不能直接采用。补充要求不会偷偷增加已用完的轮次；需要点击继续才领取新额度。中断中的用时在恢复时计入，最多计到已有额度。
+- 采用先复验，再核对源项目全部已纳入快照的文件。快照之外已存在的同名文件也拒绝覆盖。写入和字节复验失败时回滚；进程中断由 adoption journal 与实际文件共同判定完整采用、未采用或需要人工处理，绝不自动覆盖冲突。
+- UI 使用 Host 提供的真实状态；模式菜单启动、自然语言控制和原生会话卡片共用一个服务。`client.js` 通过官方 ModuleLoader 与 slot 机制加载。两个字符串 RPC 使用显式 Typert 严格描述符，绑定当前固定版本；升级 Harness 要重跑接口与运行验收。
+
+## 与原论文的对应
+
+[SLA 原论文 v1](https://arxiv.org/html/2610.07625v1) 的关键思想在此体现为：长程状态归 Host 所有，每次 Advisor/Worker 使用新上下文，已完成实验的可执行反馈进入下一次规划。调查评价入口由插件补齐，用户只给目标与约束。
+
+首版用串行单方向验证这条反馈链；没有实现完整的多方向 Epoch 调度，也不以示例项目的收益证明 SLA 的普遍效果。
+
+## 官方依据
+
+研究日期 2026-10-23，npm DSH 0.2.1-rc.2；官方源码快照 687f282e8625c6b8d11ff58211a90524be2e4317。
+
+- [插件入门](https://github.com/deepseek-ai/deepseek-harness/blob/687f282e8625c6b8d11ff58211a90524be2e4317/docs/user/develop/basic/index.md)：effect 生命周期、inject 和 patch。
+- [打包安装](https://github.com/deepseek-ai/deepseek-harness/blob/687f282e8625c6b8d11ff58211a90524be2e4317/docs/user/develop/basic/publish.md)：bundle、版本声明、官方 CLI 链接安装。
+- [官方开发技能](https://github.com/deepseek-ai/deepseek-harness/tree/687f282e8625c6b8d11ff58211a90524be2e4317/packages/preset/agent-preset/skills/cordis-plugin-development)：Host/Client、原生 slot、用户动作与工具共用服务、验证。
+- [子会话](https://github.com/deepseek-ai/deepseek-harness/tree/687f282e8625c6b8d11ff58211a90524be2e4317/packages/subagent)：spawn 不继承父上下文，structured output、caller delivery、明确 disposal。
+- [持久域](https://github.com/deepseek-ai/deepseek-harness/tree/687f282e8625c6b8d11ff58211a90524be2e4317/packages/storage/storage-domain)：读回与持久写入，不自创 session event。
+- [API Gateway](https://github.com/deepseek-ai/deepseek-harness/blob/687f282e8625c6b8d11ff58211a90524be2e4317/docs/api-gateway.md)：严格描述符、Agent lookup、同源 RPC。
+
+官方开发技能面向 Harness 内运行的 Agent，要求使用其 plugin_manager 工具；本开发环境没有该工具，安装改用同一官方教程公开的 dsh plugin add，避免手写 profile。
