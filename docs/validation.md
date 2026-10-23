@@ -65,3 +65,25 @@ node ../criteria/.sla/evaluate.mjs
 使用已有真实运行验证顶部打开、原生收起、摘要重新打开、实验与依据展开、切换到无探索会话、切回后恢复以及刷新。此次没有重新调用模型或再次写回示例项目。采用后自动收起的成功路径，以及期间切换会话/页签时保持当前视图，通过本地行为测试覆盖。
 
 新增客户端测试还覆盖多组件共享轮询、迟到响应、重复操作、失败信息和卸载后停止更新；本地测试合计 29 项。当前截图与输出保存在 `artifacts/ui-layout/`，原始 0.1.0 验收证据仍保留。
+
+## 0.1.2 内部执行入口调整
+
+移除公开的“SLA 实验执行”模式，内部工具按子会话作用域装配。实际 Web 菜单只显示一个“持续探索 · SLA”，仍可正常选择；截图和可访问性树位于 `artifacts/private-researcher/menu.png`、`menu-state.txt`。
+
+`npm test` 29 项通过；语法检查通过。另用 `scripts/verify-researcher.mjs` 在实际 `sla-dev` Host 中调用生产的 `sla.invoke`：两个 Worker 各自写入文件并通过真实 PowerShell 读回，一个 Scout 通过真实 structured_output 工具提交结果。7 次模型请求全部由固定脚本适配器响应，没有调用外部模型。验证了首个请求已有实验工具、主会话工具不变、子会话没有 sla_control、运行中菜单不出现内部模式，以及子会话结束后工具与调用记录释放。
+
+第一次检查的 shell 参数缺少 description；补齐后，仓库 artifacts 下的实验目录遇到 Windows grantWrite / Win32 5。改为使用生产探索相同的 `~/.dsh/sla-artifacts/` 目录后通过，没有修改原目录的 ACL。失败证据和最终 `verification.json` 保存在 `artifacts/private-researcher/`。这次验证针对工具装配和隔离，不重复首版的真实模型性能实验。
+
+复跑时暂停同 profile 的 Web 进程，临时 patch 插入验证插件，然后启动一次：
+
+```yaml
+- insert:
+    - id: sla-private-researcher-verification
+      name: file:///E:/dev/dsh-plugins/dsh-SLA/scripts/verify-researcher.mjs
+```
+
+```powershell
+dsh --profile sla-dev --patch ./artifacts/private-researcher/verify.patch.yml --no-open --port 3080
+```
+
+验证结果写入 `artifacts/private-researcher/verification.json`；检查 passed 为 true。结束后退出，再用 README 中不带 --patch 的命令恢复正常 Web 服务。临时验证插件不写入 profile 配置。

@@ -6,6 +6,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { remote } from './remote.js';
 import { ExplorationEngine } from './engine.js';
+import { mountResearcher } from './researcher.js';
 
 const runSchema = z.object({
   id: z.string(), sessionId: z.string(), goal: z.string(), cwd: z.string(), root: z.string(),
@@ -27,6 +28,12 @@ export default class SlaService extends TypertRemoteService {
     super(ctx, 'sla');
     ctx.typert.register({ package: remote.package, face: 'host', schemas: [], model: { services: [], events: [], objects: [] }, invocations: remote.descriptors });
     this.calls = new Map();
+    this.researchOwners = new Set();
+    ctx.on('agent/created', async ({ agent }) => {
+      if (!this.researchOwners.has(agent.session.header.parentSession)) return;
+      // Harness awaits creation listeners before the child's first model request.
+      await mountResearcher(agent.ctx);
+    });
     ctx.on('agent/pre-step', async ({ agent }, next) => {
       const call = this.calls.get(agent.id);
       if (call && ++call.steps > 24) return { kind: 'reject' };
@@ -89,12 +96,14 @@ export default class SlaService extends TypertRemoteService {
       },
     });
     let activation;
+    this.researchOwners.add(owner.agent.id);
     try {
       activation = await this.ctx.subagents.startActivation({
       provider: 'spawn', label: 'SLA · ' + role, delivery: 'caller', signal: combined,
-      request: { parent: owner.agent, cwd, agentPreset: 'sla-researcher', prompt: [{ type: 'text', text: prompt }], ...(role === 'worker' ? {} : { outputSchema: schema }), agentOptions: { maxTokens: 16000 } },
+      request: { parent: owner.agent, cwd, prompt: [{ type: 'text', text: prompt }], ...(role === 'worker' ? {} : { outputSchema: schema }), agentOptions: { maxTokens: 16000 } },
       });
     } catch (error) { await owner.dispose(); throw error; }
+    finally { this.researchOwners.delete(owner.agent.id); }
     this.calls.set(activation.childId, { steps: 0 });
     const cancel = () => { activation.dispose().catch(error => this.ctx.logger.warn(String(error))); };
     combined.addEventListener('abort', cancel, { once: true });
