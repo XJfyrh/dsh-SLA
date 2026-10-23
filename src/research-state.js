@@ -20,6 +20,27 @@ export function initializeResearch(run, config = defaults) {
 }
 
 const short = (text, n = 500) => String(text ?? '').slice(0, n);
+// Main-chat controls need current state, not every snapshot hash and old output.
+// The Web service and persisted report continue to expose the complete record.
+export function controlSummary(run, now = Date.now()) {
+  if (!run) return null;
+  const result = value => value ? { trial: value.trial, valid: value.valid, score: value.score,
+    display: value.display === undefined ? undefined : short(value.display, 160), summary: short(value.summary, 800) } : null;
+  const directions = (run.directions ?? []).filter(d => d.revision === run.revision);
+  const review = run.reviews?.at(-1);
+  return { id: run.id, goal: short(run.goal, 1200), status: run.status, stage: run.stage,
+    message: short(run.message, 1500), adopted: !!run.adopted, rebuild: !!run.rebuild,
+    revision: run.revision, criteriaVersion: run.criteriaVersion, task: run.task,
+    settings: run.settings, attempts: run.attempts, limit: run.limit,
+    elapsedMs: (run.elapsedMs ?? 0) + (run.activeSince ? Math.max(0, now - run.activeSince) : 0), timeLimitMs: run.timeLimitMs,
+    baseline: result(run.baseline), best: result(run.best),
+    epochs: run.epochs?.length ?? 0, directionCount: directions.length,
+    directions: directions.slice(-8).map(d => ({ id: d.id, best: result(d.best) })),
+    reviewSupported: !!run.reviewSupported, reviewPending: !!run.pendingReview,
+    latestReview: review ? { phase: review.phase, status: review.status, summary: short(review.summary, 1000), error: short(review.error, 1000) } : null,
+    evidenceDirectory: run.root };
+}
+
 function currentTrial(trial, run) {
   const assessment = run?.assessments?.filter(a => a.trial === trial.number && a.revision === run.revision && a.criteriaVersion === run.criteriaVersion).at(-1);
   if (assessment) return { ...trial, historicalStatus: trial.status, criteriaVersion: assessment.criteriaVersion, evaluation: assessment.evaluation,

@@ -171,7 +171,7 @@ function factory(require) {
                   h('div', null, h('div', { className: 'sla-muted' }, t('baseline')), h('div', { className: 'sla-value' }, value(run.baseline))),
                   h('div', null, h('div', { className: 'sla-muted' }, t('best')), h('div', { className: 'sla-value' }, value(run.best)))),
                 h('p', { className: 'sla-muted' }, run.criteria.unit)),
-              run.adopted && h('div', { className: 'sla-adopted' }, h('strong', null, t('adopted')), h('p', null, t('adoptedSummary')), run.adoptionCheck && h('p', { className: 'sla-muted' }, t('recheck'), '：', run.adoptionCheck.summary)),
+              run.adopted && h('div', { className: 'sla-adopted' }, h('strong', null, t('adopted')), h('p', null, t('adoptedSummary')), run.adoptionCheck && h('details', { className: 'sla-muted' }, h('summary', null, t('recheck')), h('p', null, run.adoptionCheck.summary))),
               !run.adopted && h(React.Fragment, null,
                 h('div', { className: 'sla-actions' },
                   moving(run) ? button('pause', 'pause', run.status === 'pausing' || run.status === 'stopping') : !run.adoptionPending && button('resume', 'resume', false, true),
