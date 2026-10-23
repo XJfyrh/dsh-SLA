@@ -1,4 +1,22 @@
-# 首版验收
+# 验收记录
+
+## 0.2 可扩展任务
+
+2026-10-23，在同一 Windows / Node.js 24.19.0 / DeepSeek Harness 0.2.1-rc.2 Web profile 验证。代码性能和缺陷修复均通过普通 Cordis 插件注册；核心不导入具体任务，也不要求数值分数。
+
+`npm test`：43 项通过，0 失败、0 跳过；`npm run check` 检查 18 个 JavaScript 文件；客户端构建通过。测试覆盖无分数评价、失败缺陷基线、原生评价器、空评价目录、运行缓存、固定文件防篡改、扩展卸载取消、版本不匹配、结果与核心元数据隔离、只读权限和采用回滚。
+
+实际 Host 中，`scripts/verify-researcher.mjs` 使用固定模型适配器完成 35 次请求、6 个独立子会话，不调用外部模型。其中 24 次专门验证剩余步数提醒、到达上限后的停止与清理。已验证真实文件写入与 PowerShell 读回、运行时与项目目录两种 Skill 加载、首个请求的工具和阶段提示、结构化输出、主会话工具不变、私有工具释放、普通插件注册/卸载/升级，以及原生评价器无法绕过只读采用限制。项目 Skill 起初返回 unknown：修复为与官方 standard preset 一样，同时装配 `dsh-skill-filesystem` 和 `dsh-tool-skill`，随后项目目录加载通过。证据在 `artifacts/extensibility/researcher/verification.json`，复跑仍使用本文末尾的临时 patch；正常 Web 不加载该验证插件。
+
+真实缺陷流程先暴露了阶段职责问题：Scout 完成缺陷复现后继续修改了 `clamp.js`，核心拒绝这套评价依据，原项目未写回。现按每次调用的角色装配 DSH persona 系统提示，明确调查完成即提交、修复由 Worker 执行；文件内容校验继续承担实际阻断。失败记录保留在 `artifacts/extensibility/live/bugfix-discovery-rejected.json`。
+
+缺陷修复真实探索 `0310992e-7306-4d36-aa79-796ced02aafe`：Web 一句话自动选择 `code-bugfix@1.0.0`，实际完成暂停、重启、继续、无分数结果展示与采用。第一候选通过原评价，但独立反例发现它把非目标边界的 `-0` 改成 `+0`；通过主对话补充两个反例后，旧结果不再可采用，判断依据升至版本 2。第二候选只删除 `value || min` 的错误兜底，目标零值修复、原有 4 项测试和 2 项有符号零回归均通过，采用前再次复验并仅写回 `clamp.js`，源项目字节与候选一致。
+
+使用同一版冻结检查脱离模型重放：初始项目为 `reproduced:true / regressionPassed:true / valid:false`；旧候选为 `reproduced:false / regressionPassed:false / valid:false`；最终候选为 `reproduced:false / regressionPassed:true / valid:true`。完整输出在 `artifacts/extensibility/live/bugfix-replay/`；运行 `node .sla/evaluate.mjs` 可分别重放其中 `initial`、`rejected-v1`、`best` 三个目录。最终界面截图为 `live/bugfix-adopted.png`。
+
+扩展接口与示例见[扩展说明](extensions.md)。本版本仍以文件项目为候选，没有远程系统快照适配器、多方向并行 Epoch 或独立 Token 计费账本。
+
+## 0.1 首版验收
 
 2026-10-23，Windows / Node.js 24.19.0 / DeepSeek Harness 0.2.1-rc.2，Web profile `sla-dev`，模型 DeepSeek-V4.1-Flash（High）。本机 Web 从 0.1.5-rc.3 升级；桌面版未修改。插件按[官方契约](design.md#官方依据)链接安装，旧第三方插件不纳入兼容范围。
 

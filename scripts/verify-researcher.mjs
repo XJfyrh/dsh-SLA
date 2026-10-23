@@ -50,6 +50,9 @@ async function verify(ctx) {
   await ctx.sla.ready;
   const cwd = path.join(os.homedir(), '.dsh', 'sla-artifacts', 'private-researcher-smoke', randomUUID());
   await mkdir(cwd, { recursive: true });
+  const projectSkillDir = path.join(cwd, '.agents', 'skills', 'sla-local-probe');
+  await mkdir(projectSkillDir, { recursive: true });
+  await writeFile(path.join(projectSkillDir, 'SKILL.md'), '---\nname: sla-local-probe\ndescription: Verify project skill discovery.\n---\nSLA_LOCAL_SKILL_PROBE: load from the current snapshot.\n');
   const roster = await ctx.agentPresets.list();
   assert.deepEqual(roster.filter(item => item.id.startsWith('sla')).map(item => item.id), ['sla']);
   const adapter = new ScriptedAdapter();
@@ -99,6 +102,9 @@ async function verify(ctx) {
     adapter.queue.push(tool('skill', { name: 'sla-probe' }), done);
     await ctx.sla.invoke({ parent: parent.agent, role: 'worker', cwd, prompt: 'Load sla-probe.', signal: AbortSignal.timeout(60000), onStarted });
     assert.ok(results.at(-1).content.some(block => block.text?.includes('SLA_SKILL_PROBE')), JSON.stringify(results.at(-1)));
+    adapter.queue.push(tool('skill', { name: 'sla-local-probe' }), done);
+    await ctx.sla.invoke({ parent: parent.agent, role: 'worker', cwd, prompt: 'Load the project skill sla-local-probe.', signal: AbortSignal.timeout(60000), onStarted });
+    assert.ok(results.at(-1).content.some(block => block.text?.includes('SLA_LOCAL_SKILL_PROBE')), JSON.stringify(results.at(-1)));
     adapter.queue.push(options => {
       assert.ok(JSON.stringify(options).includes('缺陷复现成功就是本阶段成功'), 'scout role boundary missing from model request');
       const submit = options.tools.find(item => !requiredTools.includes(item.name) && item.parameters?.properties?.ok);
@@ -107,12 +113,20 @@ async function verify(ctx) {
     });
     const result = await ctx.sla.invoke({ parent: parent.agent, role: 'scout', cwd, prompt: 'Submit the scripted structured result.', schema: { type: 'object', properties: { ok: { type: 'boolean' } }, required: ['ok'], additionalProperties: false }, signal: AbortSignal.timeout(60000), onStarted });
     assert.deepEqual(result, { ok: true });
-    assert.equal(results.length, 6);
+    assert.equal(results.length, 7);
     assert.ok(results.every(result => !result.isError), JSON.stringify(results));
     for (let index = 1; index <= 2; index++) assert.ok(results[index * 2 - 1].content.some(block => block.text?.includes(`private-child-${index}`)));
     assert.equal(ctx.sla.researchOwners.size, 0);
     assert.equal(ctx.sla.calls.size, 0);
     assert.deepEqual(mainTools(), before);
+    adapter.queue.push(...Array.from({ length: 24 }, (_, index) => options => {
+      if (index >= 20) assert.ok(JSON.stringify(options).includes('本次 SLA 调用已进入收尾阶段'), 'step budget feedback missing');
+      return tool('read', { file_path: 'probe-1.txt' });
+    }));
+    await assert.rejects(ctx.sla.invoke({ parent: parent.agent, role: 'worker', cwd, prompt: 'Exercise the invocation step limit.', signal: AbortSignal.timeout(60000), onStarted }), /24 步上限/);
+    assert.equal(adapter.queue.length, 0);
+    assert.equal(ctx.sla.calls.size, 0);
+    assert.equal(ctx.sla.researchOwners.size, 0);
     assert.deepEqual(ctx.sla.tasks.list().map(task => task.id).sort(), ['code-bugfix', 'code-performance']);
     const external = { ...performanceTask, id: 'host-extension-probe', name: 'Host extension probe' };
     const plugin = { name: 'sla-extension-probe', inject: ['sla'], apply(scope) { scope.effect(() => scope.sla.registerTask(external)); } };
@@ -139,7 +153,7 @@ async function verify(ctx) {
       assert.equal(await readFile(path.join(project, 'value.txt'), 'utf8'), 'original');
       assert.equal(nativeEvaluations, 0);
     } finally { await nativePlugin.dispose(); }
-    return { passed: true, model: 'scripted; no external API', requests: adapter.requests, children: children.map(child => child.id), tools: results, tasks: ctx.sla.tasks.list(), nativeReadonlyAdoptionBlocked: true, pluginLifecycleVerified: true, skillLoaded: true, publicSlaPresets: ['sla'], privateToolsDisposed: children.every(child => ctx.tools.get('write', child) === undefined), cwd };
+    return { passed: true, model: 'scripted; no external API', requests: adapter.requests, children: children.map(child => child.id), tools: results, tasks: ctx.sla.tasks.list(), stepLimitReported: true, nativeReadonlyAdoptionBlocked: true, pluginLifecycleVerified: true, skillLoaded: true, projectSkillLoaded: true, publicSlaPresets: ['sla'], privateToolsDisposed: children.every(child => ctx.tools.get('write', child) === undefined), cwd };
   } finally {
     unlisten();
     unregister();

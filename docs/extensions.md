@@ -4,7 +4,7 @@ SLA 0.2 复用 DSH 的 Cordis 插件、服务和 Skill。核心提供文件候�
 
 ## 方法扩展：DSH Skill
 
-项目技能放在 `.agents/skills/<name>/SKILL.md`，也可由普通 DSH 插件通过 `ctx.skills.register` 提供。SLA 的选择、调查、规划、执行子会话装配官方 `dsh-tool-skill`，复用宿主技能服务和发现机制。项目 `.agents` 会进入候选快照，技能附带资源通过官方加载结果定位。默认快照排除 `.dsh`，项目内需随快照携带的技能使用 `.agents/skills`。
+项目技能放在 `.agents/skills/<name>/SKILL.md`，也可由普通 DSH 插件通过 `ctx.skills.register` 提供。SLA 的选择、调查、规划、执行子会话装配官方 `dsh-skill-filesystem` 与 `dsh-tool-skill`，复用宿主技能服务和发现机制，随子会话卸载文件监听。项目 `.agents` 会进入候选快照，技能附带资源通过官方加载结果定位。默认快照排除 `.dsh`，项目内需随快照携带的技能使用 `.agents/skills`。
 
 Skill 提供方法与资源，不替代实际执行的检查结果。当前使用源码和资源文件，不冻结用户级技能服务的后续内容变化；已建立的评价文件独立冻结。
 

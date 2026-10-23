@@ -35,6 +35,14 @@ export default class SlaService extends TypertRemoteService {
       if (!this.researchOwners.has(agent.session.header.parentSession)) return;
       // Harness awaits creation listeners before the child's first model request.
       await mountResearcher(agent.ctx, this.researchOwners.get(agent.session.header.parentSession));
+      agent.ctx.systemPrompt.context({
+        name: 'sla:invocation-budget', order: 1000, required: true, interpolate: false,
+        text: () => {
+          const steps = this.calls.get(agent.id)?.steps ?? 0;
+          return steps < 18 ? '本次 SLA 调用最多 24 步，请预留一步提交结果。'
+            : `本次 SLA 调用已进入收尾阶段。包含当前步还剩 ${25 - steps} 步。停止增加检查或临时样例，优先提交已有结果；无法完成时如实说明缺少条件。需要结构化输出的角色必须调用结果提交工具，文件已写好不等于调用完成。`;
+        },
+      });
     });
     ctx.on('agent/pre-step', async ({ agent }, next) => {
       const call = this.calls.get(agent.id);
@@ -119,6 +127,7 @@ export default class SlaService extends TypertRemoteService {
       await onStarted(activation.childId);
       const result = await activation.result;
       combined.throwIfAborted();
+      if (this.calls.get(activation.childId)?.steps > 24) throw new Error('子会话达到 24 步上限，尚未提交完整结果；本次调用证据已保留。');
       if (result.stopReason !== 'completed') throw new Error(`子会话未完成：${result.stopReason} ${result.diagnostic ?? '未提交完整结果'}`);
       if (role === 'worker') return { summary: result.output.filter(x => x.type === 'text').map(x => x.text).join('\n'), changes: [] };
       if (!result.structured) throw new Error('子会话未提交结构化结果');

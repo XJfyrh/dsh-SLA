@@ -2,6 +2,7 @@ import * as persona from '@deepseek-ai/dsh-persona';
 import * as files from '@deepseek-ai/dsh-tool-fs';
 import * as search from '@deepseek-ai/dsh-tool-fs-search';
 import * as skills from '@deepseek-ai/dsh-tool-skill';
+import * as skillFiles from '@deepseek-ai/dsh-skill-filesystem';
 
 // These tools belong to one private child scope, not the selectable preset roster.
 export async function mountResearcher(ctx, role) {
@@ -19,6 +20,7 @@ export async function mountResearcher(ctx, role) {
     [persona, { prefix: `你只负责 SLA 的 ${role} 阶段。项目总体目标是背景，不是要求你在本阶段完成整个任务。${boundaries[role]}技能只辅助当前阶段，不扩大允许修改的范围。` }],
     [files, {}],
     [search, { sampleOverCapGlobResults: false }],
+    [skillFiles, {}],
     [skills, {}],
     [shell, {}],
   ]) {
