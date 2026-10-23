@@ -1,5 +1,36 @@
 # 验收记录
 
+## 0.3.2 采用判断与状态展示
+
+按 Product Design 走查的前三项实施：最近已完成对话中的实时状态摘要、按采用判断组织侧栏、检查行为名称与历史来源。首屏先说明结果与保留理由；具体检查、改动和原文仍可展开。新说明来自执行者或审查者，状态与版本来自实际记录，旧记录缺少语义摘要时不补造。
+
+Web 在 `sla-dev` / DSH 0.2.1-rc.2 / Node.js 24 下使用已有真实性能和缺陷修复记录验证：
+
+- 性能会话最新回复仍保留当时“审查候选 #4”的原文，下方最新状态显示实际已采用候选 #3、评价版本 4、采用时复验 2 ms；侧栏使用相同值，并列出当前检查排除的 #4、#5、#7。
+- 缺陷修复显示“缺陷已复现 → 修复通过”，候选 #1、评价版本 3，与性能任务共用结果投影。
+- 当前通过的第二组检查展开后，原始失败说明明确标为历史来源：候选 #4、评价版本 2、纳入版本 3，避免与当前通过混淆。
+- 验证会话切换、正式服务重启恢复、侧栏收起，以及从最新摘要用 Enter 重新打开详情。截图及界面树在 `artifacts/decision-ui/`。
+
+本地行为测试覆盖新轮次只保留一张最新摘要、重建依据时隐藏旧结果、当前失败覆盖历史成功、审查身份不一致时不显示采用、非数值结果、说明提取、历史来源与元数据持久化；过长或错误类型的元数据不会改变可执行检查结果。
+
+最终行为回归 **72 项通过，0 失败，0 跳过**；24 个 JavaScript 文件语法检查通过。完整输出为 `artifacts/decision-ui/tests-final.txt`。测试完成后按用户意见将包版本从临时的 0.4.0 改为 0.3.2，未改动测试对应代码；本机保留链接安装，不生成发布包。
+
+`scripts/verify-presentation.mjs` 还通过实际 Host 的 fresh spawn 和 structured output 验证 Worker Markdown 与 Reviewer 新字段。首次调用被 DSH 拒绝，因为其 Schema 子集不支持 `maxLength`；改用字段说明及 Host 保存时的长度检查后，2 次固定模型响应通过，没有外部 API 请求。失败保存在 `artifacts/decision-ui/host/unsupported-schema.json`，成功保存在同目录 `verification.json`。该验证不代表真实模型一定生成合格文案，也不重复探索算法效果验证。
+
+复跑时暂停该 profile 的 Web 进程，通过临时 patch 插入 `scripts/verify-presentation.mjs`，按下列方式启动；检查完成后去掉 patch 恢复正常服务：
+
+```yaml
+- insert:
+    - id: sla-presentation-verification
+      name: file:///E:/dev/dsh-plugins/dsh-SLA/scripts/verify-presentation.mjs
+```
+
+```powershell
+dsh --profile sla-dev --patch ./artifacts/decision-ui/verify.patch.yml --no-open --port 3080
+```
+
+本次没有重新运行外部模型探索或采用操作。运行中、阻塞和重新建立依据的状态选择由本地行为测试覆盖，浏览器验收使用已采用的真实记录；未验证桌面版。入口提示与方向对比页不在本次范围。
+
 ## 0.3.1 信息展示与文本渲染（2026-10-23）
 
 复用 DSH 的 `MarkdownText` 与 `DiffBlock`，没有新增渲染依赖或展示用模型请求。旧记录不重写，用户先看到检查结论、实测结果与补充检查组数，必要时展开原始记录；新调查、审查与评价输出要求简短中文和 Markdown。
@@ -153,34 +184,3 @@ dsh --profile sla-dev --patch ./artifacts/private-researcher/verify.patch.yml --
 ```
 
 验证结果写入 `artifacts/private-researcher/verification.json`；检查 passed 为 true。结束后退出，再用 README 中不带 --patch 的命令恢复正常 Web 服务。临时验证插件不写入 profile 配置。
-
-## 0.3.2 采用判断与状态展示
-
-按 Product Design 走查的前三项实施：最近已完成对话中的实时状态摘要、按采用判断组织侧栏、检查行为名称与历史来源。首屏先说明结果与保留理由；具体检查、改动和原文仍可展开。新说明来自执行者或审查者，状态与版本来自实际记录，旧记录缺少语义摘要时不补造。
-
-Web 在 `sla-dev` / DSH 0.2.1-rc.2 / Node.js 24 下使用已有真实性能和缺陷修复记录验证：
-
-- 性能会话最新回复仍保留当时“审查候选 #4”的原文，下方最新状态显示实际已采用候选 #3、评价版本 4、采用时复验 2 ms；侧栏使用相同值，并列出当前检查排除的 #4、#5、#7。
-- 缺陷修复显示“缺陷已复现 → 修复通过”，候选 #1、评价版本 3，与性能任务共用结果投影。
-- 当前通过的第二组检查展开后，原始失败说明明确标为历史来源：候选 #4、评价版本 2、纳入版本 3，避免与当前通过混淆。
-- 验证会话切换、正式服务重启恢复、侧栏收起，以及从最新摘要用 Enter 重新打开详情。截图及界面树在 `artifacts/decision-ui/`。
-
-本地行为测试覆盖新轮次只保留一张最新摘要、重建依据时隐藏旧结果、当前失败覆盖历史成功、审查身份不一致时不显示采用、非数值结果、说明提取、历史来源与元数据持久化；过长或错误类型的元数据不会改变可执行检查结果。
-
-最终行为回归 **72 项通过，0 失败，0 跳过**；24 个 JavaScript 文件语法检查通过。完整输出为 `artifacts/decision-ui/tests-final.txt`。测试完成后按用户意见将包版本从临时的 0.4.0 改为 0.3.2，未改动测试对应代码；本机保留链接安装，不生成发布包。
-
-`scripts/verify-presentation.mjs` 还通过实际 Host 的 fresh spawn 和 structured output 验证 Worker Markdown 与 Reviewer 新字段。首次调用被 DSH 拒绝，因为其 Schema 子集不支持 `maxLength`；改用字段说明及 Host 保存时的长度检查后，2 次固定模型响应通过，没有外部 API 请求。失败保存在 `artifacts/decision-ui/host/unsupported-schema.json`，成功保存在同目录 `verification.json`。该验证不代表真实模型一定生成合格文案，也不重复探索算法效果验证。
-
-复跑时暂停该 profile 的 Web 进程，通过临时 patch 插入 `scripts/verify-presentation.mjs`，按下列方式启动；检查完成后去掉 patch 恢复正常服务：
-
-```yaml
-- insert:
-    - id: sla-presentation-verification
-      name: file:///E:/dev/dsh-plugins/dsh-SLA/scripts/verify-presentation.mjs
-```
-
-```powershell
-dsh --profile sla-dev --patch ./artifacts/decision-ui/verify.patch.yml --no-open --port 3080
-```
-
-本次没有重新运行外部模型探索或采用操作。运行中、阻塞和重新建立依据的状态选择由本地行为测试覆盖，浏览器验收使用已采用的真实记录；未验证桌面版。入口提示与方向对比页不在本次范围。
