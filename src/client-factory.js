@@ -92,12 +92,17 @@ function factory(require) {
                 ...run.reviews.map(r => h('div', { key: r.id, className: 'sla-trial' }, h('strong', null, `#${r.targetTrial} · ${t(r.status)}`), h('p', null, r.summary || r.error), r.summary && r.error && h('p', { className: 'sla-muted' }, r.error)))),
               h('div', { className: 'sla-section' }, h('div', { className: 'sla-top' }, h('h3', null, t('experiments')), h('span', { className: 'sla-muted' }, `${run.attempts} / ${run.limit} ${t('trials')}`)),
                 run.trials.length === 0 && h('p', { className: 'sla-muted' }, t('empty')),
-                ...run.trials.map(trial => h('details', { key: trial.number, className: 'sla-trial' },
-                  h('summary', null, `#${trial.number} · ${t(trial.status)}`, trial.display !== undefined || trial.score !== undefined ? ` · ${value(trial)}` : '', ` · ${t('revision')} ${trial.criteriaVersion ?? trial.revision}`),
+                ...run.trials.map(trial => {
+                  const assessment = (run.assessments ?? []).filter(a => a.trial === trial.number && a.revision === run.revision && a.criteriaVersion === run.criteriaVersion).at(-1);
+                  const shown = assessment?.evaluation ?? trial;
+                  const label = assessment ? `${t('reassessment')}${shown.valid ? '' : ' · ' + t('invalid')}` : t(trial.status);
+                  return h('details', { key: trial.number, className: 'sla-trial' },
+                  h('summary', null, `#${trial.number} · ${label}`, shown.display !== undefined || shown.score !== undefined ? ` · ${value(shown)}` : '', ` · ${t('revision')} ${assessment?.criteriaVersion ?? trial.criteriaVersion ?? trial.revision}`),
                   trial.direction && h('p', { className: 'sla-muted' }, `${t('epochs')} ${trial.epoch} · ${trial.direction} · ${t('parent')} #${trial.parentTrial}`),
+                  assessment && h('p', { className: 'sla-muted' }, `${t('revision')} ${trial.criteriaVersion ?? trial.revision} · ${t(trial.status)}`),
                   h('p', null, trial.hypothesis), h('p', null, trial.summary),
                   ...(run.assessments ?? []).filter(a => a.trial === trial.number).map(a => h('p', { key: a.criteriaVersion }, `${t('reassessment')} v${a.criteriaVersion}: ${a.evaluation.summary}`)),
-                  trial.changes?.length > 0 && h('p', { className: 'sla-muted' }, trial.changes.join('、'))))),
+                  trial.changes?.length > 0 && h('p', { className: 'sla-muted' }, trial.changes.join('、'))); })),
               h('details', { className: 'sla-section' }, h('summary', null, t('evidence')), h('p', { className: 'sla-path' }, run.root)),
               !run.adopted && h('p', { className: 'sla-muted sla-section' }, run.settings ? `${run.settings.maxTrials} ${t('trials')} · ${run.settings.maxMinutes} min · ${run.settings.directions} ${t('directions')} × ${run.settings.localTrials}` : t('allowance'), ' · ', t('unchanged'))));
         }
