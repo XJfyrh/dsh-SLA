@@ -15,7 +15,7 @@ function factory(require) {
 `;
   const moving = run => run && ['running', 'preparing', 'pausing', 'stopping'].includes(run.status);
   const state = run => run.adopted ? 'adopted' : run.status;
-  const value = x => x ? String(Number(x.score.toPrecision(6))) : '—';
+  const value = x => x?.display ?? (Number.isFinite(x?.score) ? String(Number(x.score.toPrecision(6))) : '—');
   return {
     inject: ['slots', 'remote', 'locale', 'sidebarRight', 'sidebarRightTabs'],
     async apply(ctx) {
@@ -82,11 +82,12 @@ function factory(require) {
                 h('p', { className: 'sla-muted sla-hint' }, t('steerHint'))),
               run.best?.diff && h('details', { className: 'sla-section' }, h('summary', null, t('changes')), h('pre', null, run.best.diff)),
               h('details', { className: 'sla-section' }, h('summary', null, t('method'), ` · ${t('revision')} ${run.revision}`), h('p', null, run.criteria?.criterion ?? t('pending')),
+                run.task && h('p', { className: 'sla-muted' }, `${run.task.name} · ${run.task.version}`, run.selectionReason ? ` · ${run.selectionReason}` : ''),
                 run.notes.length > 0 && h(React.Fragment, null, h('h3', null, t('notes')), ...run.notes.map((note, i) => h('p', { key: i }, note)))),
               h('div', { className: 'sla-section' }, h('div', { className: 'sla-top' }, h('h3', null, t('experiments')), h('span', { className: 'sla-muted' }, `${run.attempts} / ${run.limit} ${t('trials')}`)),
                 run.trials.length === 0 && h('p', { className: 'sla-muted' }, t('empty')),
                 ...run.trials.map(trial => h('details', { key: trial.number, className: 'sla-trial' },
-                  h('summary', null, `#${trial.number} · ${t(trial.status)}`, trial.score === undefined ? '' : ` · ${trial.score}`, ` · ${t('revision')} ${trial.revision}`),
+                  h('summary', null, `#${trial.number} · ${t(trial.status)}`, trial.display !== undefined || trial.score !== undefined ? ` · ${value(trial)}` : '', ` · ${t('revision')} ${trial.revision}`),
                   h('p', null, trial.hypothesis), h('p', null, trial.summary),
                   trial.changes?.length > 0 && h('p', { className: 'sla-muted' }, trial.changes.join('、'))))),
               h('details', { className: 'sla-section' }, h('summary', null, t('evidence')), h('p', { className: 'sla-path' }, run.root)),

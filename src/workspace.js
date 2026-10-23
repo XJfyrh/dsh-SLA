@@ -103,7 +103,20 @@ export async function copyEvaluation(source, target) {
   return files;
 }
 
-export async function adopt(run) {
+export async function verifyEvaluation(root, files) {
+  const base = path.join(root, '.sla');
+  for (const [name, hash] of Object.entries(files)) {
+    if (path.isAbsolute(name) || name.split(/[\\/]/).some(part => part === '..' || !part)) throw new Error('固定评价依据路径无效');
+    let current = base;
+    for (const part of ['', ...name.split('/')]) {
+      if (part) current = path.join(current, part);
+      if ((await lstat(current)).isSymbolicLink()) throw new Error('固定评价依据不允许符号链接');
+    }
+    if (digest(await readFile(current)) !== hash) throw new Error('固定评价依据内容被修改：' + name);
+  }
+}
+
+export async function adopt(run, authorize = async () => {}) {
   const before = run.sourceFiles;
   const after = await inventory(run.best.dir);
   const current = await inventory(run.cwd);
@@ -126,9 +139,11 @@ export async function adopt(run) {
   const backups = new Map();
   for (const name of names) backups.set(name, before[name] ? await readFile(path.join(run.cwd, name)) : null);
   const journal = { state: 'applying', files: names, before, after, backupDirectory: run.baselineDir };
+  await authorize();
   await writeJournal(run.root, journal);
   try {
     for (const name of names) {
+      await authorize();
       const dest = path.join(run.cwd, name);
       if (after[name]) {
         await mkdir(path.dirname(dest), { recursive: true });

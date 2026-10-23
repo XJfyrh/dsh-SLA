@@ -1,0 +1,1 @@
+{"name":"sla-clamp-bug-example","private":true,"type":"module","scripts":{"test":"node --test clamp.test.js"}}

@@ -5,40 +5,49 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { ExplorationEngine, parseEvaluation } from '../src/engine.js';
+import { ExplorationEngine } from '../src/engine.js';
+import { performanceTask, parseEvaluation } from '../extensions/performance.js';
+import { bugfixTask } from '../extensions/bugfix.js';
+import { TaskRegistry } from '../src/task-registry.js';
+import { z } from 'zod';
 import { inventory, snapshot, adopt } from '../src/workspace.js';
 const exec = promisify(execFile);
 const parent = { id: 'session-test' };
 async function fixture(options = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'sla-test-'));
   const cwd = path.join(root, 'project'); await mkdir(cwd);
-  await writeFile(path.join(cwd, 'candidate.json'), JSON.stringify({ score: 100, valid: true }));
+  await writeFile(path.join(cwd, 'candidate.json'), JSON.stringify(options.initial ?? { score: 100, valid: true }));
   const records = new Map(), calls = [];
   let trial = 0;
   const store = { get: key => records.get(key), entries: () => records.entries(), put: async (key, value) => { records.set(key, structuredClone(value)); } };
   const adapter = {
+    authorize: async () => {},
     directory: async () => cwd, error: e => { throw e; },
     invoke: async args => {
       calls.push({ role: args.role, prompt: args.prompt, cwd: args.cwd });
       await args.onStarted('fresh-' + calls.length);
       if (options.invoke) { const result = await options.invoke(args); if (result) return result; }
+      if (args.role === 'selector') return { taskId: options.task?.id ?? performanceTask.id, reason: 'fixture selection' };
       if (args.role === 'scout') {
-        await mkdir(path.join(args.cwd, '.sla'));
+        await mkdir(path.join(args.cwd, '.sla'), { recursive: true });
         await writeFile(path.join(args.cwd, '.sla', 'evaluate.mjs'), `import fs from 'node:fs'; const v=JSON.parse(fs.readFileSync('candidate.json')); console.log('SLA_RESULT '+JSON.stringify({...v,summary:'fixture checks'}));`);
         return { title: 'fixture', criterion: 'lower score with valid checks', unit: 'operations', ready: true, reason: '' };
       }
       if (args.role === 'advisor') return { hypothesis: 'direction ' + (trial + 1), instructions: 'change', stop: false, reason: '' };
-      const value = (options.results ?? [{ score: 90, valid: true }, { score: 1, valid: false }, { score: 110, valid: true }])[trial++ % 3];
+      const results = options.results ?? [{ score: 90, valid: true }, { score: 1, valid: false }, { score: 110, valid: true }];
+      const value = results[trial++ % results.length];
       await writeFile(path.join(args.cwd, 'candidate.json'), JSON.stringify(value));
       return { summary: 'candidate changed', changes: ['candidate.json'] };
     },
-    evaluate: async ({ cwd, signal }) => {
+    execute: async ({ cwd, signal }) => {
       const { stdout, stderr } = await exec(process.execPath, ['.sla/evaluate.mjs'], { cwd, signal, windowsHide: true });
       return { exitCode: 0, stdout: { text: stdout, truncated: false }, stderr: { text: stderr }, aborted: false, timedOut: false };
     },
   };
-  const engine = new ExplorationEngine({ store, adapter, root: path.join(root, 'runs') });
-  return { root, cwd, engine, store, calls, adapter };
+  const tasks = new TaskRegistry();
+  const unregister = tasks.register(options.task ?? performanceTask);
+  const engine = new ExplorationEngine({ store, adapter, tasks, root: path.join(root, 'runs') });
+  return { root, cwd, engine, store, calls, adapter, tasks, unregister };
 }
 async function settle(engine) { while (engine.active.size) await Promise.all([...engine.active.values()].map(x => x.promise)); }
 
@@ -48,7 +57,7 @@ test('fresh role calls use measured results, reject incorrect faster candidate a
   const run = f.engine.get(parent.id);
   assert.equal(run.status, 'completed'); assert.equal(run.best.score, 90);
   assert.deepEqual(run.trials.map(x => x.status), ['kept', 'invalid', 'no-improvement']);
-  assert.equal(new Set(run.invocations.map(x => x.childId)).size, 7);
+  assert.equal(new Set(run.invocations.map(x => x.childId)).size, 8);
   assert.match(f.calls.filter(x => x.role === 'advisor')[2].prompt, /"valid":false/);
   assert.equal(JSON.parse(await readFile(path.join(f.cwd, 'candidate.json'))).score, 100);
   await f.engine.action(parent, { action: 'adopt' });
@@ -112,7 +121,7 @@ test('crash recovery retains elapsed budget and interrupted invocation identity'
 test('shutdown cancels and drains adoption before its storage can close', async () => {
   const f = await fixture(); await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
   let entered; const waiting = new Promise(resolve => { entered = resolve; });
-  f.adapter.evaluate = async ({ signal }) => {
+  f.adapter.execute = async ({ signal }) => {
     entered();
     await new Promise((_, reject) => signal.addEventListener('abort', () => setTimeout(() => reject(signal.reason), 20), { once: true }));
   };
@@ -169,7 +178,7 @@ test('retrying failed discovery freezes a fresh evaluator without stale helper f
   const f = await fixture({ invoke: async args => {
     if (args.role !== 'scout') return;
     discovery++;
-    await mkdir(path.join(args.cwd, '.sla'));
+    await mkdir(path.join(args.cwd, '.sla'), { recursive: true });
     if (discovery === 1) await writeFile(path.join(args.cwd, '.sla', 'old-helper.txt'), 'old');
     await writeFile(path.join(args.cwd, '.sla', 'evaluate.mjs'), discovery === 1
       ? `console.log('SLA_RESULT '+JSON.stringify({valid:false,score:100,summary:'baseline failure'}));`
@@ -204,4 +213,123 @@ test('snapshot excludes secrets and build artifacts, includes current uncommitte
   const files = await snapshot(f.cwd, path.join(f.root, 'copy'));
   assert.deepEqual(Object.keys(files), ['candidate.json']);
   assert.deepEqual(await inventory(path.join(f.root, 'copy')), files);
+});
+
+test('independent bugfix extension accepts failing baseline, rejects regressions and adopts without a score', async () => {
+  const f = await fixture({ task: bugfixTask,
+    initial: { valid: false, reproduced: true, regressionPassed: true },
+    results: [{ valid: false, reproduced: false, regressionPassed: false }, { valid: true, reproduced: false, regressionPassed: true }],
+  });
+  await f.engine.action(parent, { action: 'start', text: 'fix defect' }); await settle(f.engine);
+  const run = f.engine.get(parent.id);
+  assert.equal(run.status, 'completed'); assert.equal(run.task.id, bugfixTask.id);
+  assert.equal(run.baseline.valid, false); assert.equal(run.best.score, undefined);
+  assert.equal(run.best.display, '修复通过'); assert.equal(run.attempts, 2);
+  z.array(z.record(z.string(), z.json())).parse(run.trials);
+  assert.deepEqual(run.trials.map(x => x.status), ['invalid', 'kept']);
+  await f.engine.recover();
+  await f.engine.action(parent, { action: 'adopt' });
+  assert.deepEqual(JSON.parse(await readFile(path.join(f.cwd, 'candidate.json'))), { valid: true, reproduced: false, regressionPassed: true });
+});
+
+test('unloading an extension cancels its active work and same version can resume', async () => {
+  let entered; const waiting = new Promise(resolve => { entered = resolve; }); let block = true;
+  const f = await fixture({ invoke: async args => {
+    if (args.role === 'worker' && block) {
+      entered(); await new Promise((_, reject) => args.signal.addEventListener('abort', () => reject(args.signal.reason), { once: true }));
+    }
+  } });
+  await f.engine.action(parent, { action: 'start', text: 'improve' }); await waiting;
+  f.unregister(); await settle(f.engine);
+  assert.equal(f.engine.get(parent.id).status, 'blocked');
+  assert.match(f.engine.get(parent.id).message, /扩展已卸载/);
+  f.tasks.register({ ...performanceTask, version: '2.0.0' });
+  await f.engine.action(parent, { action: 'resume' }); await settle(f.engine);
+  assert.match(f.engine.get(parent.id).message, /版本不一致/);
+  const fresh = new TaskRegistry(); fresh.register(performanceTask); f.engine.tasks = fresh; block = false;
+  await f.engine.action(parent, { action: 'resume' }); await settle(f.engine);
+  assert.equal(f.engine.get(parent.id).status, 'completed');
+  assert.equal(f.calls.filter(x => x.role === 'selector').length, 1);
+});
+
+test('missing extension prevents adoption even when prior candidate is valid', async () => {
+  const f = await fixture(); await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
+  f.unregister(); await assert.rejects(f.engine.action(parent, { action: 'adopt' }), /未安装/);
+  assert.equal(JSON.parse(await readFile(path.join(f.cwd, 'candidate.json'))).score, 100);
+});
+
+test('core accepts a separate extension with its own command and no evaluate.mjs or numeric metric', async () => {
+  const task = { ...bugfixTask, id: 'custom-check', name: 'Custom',
+    async evaluate({ execute }) { const raw = await execute('external-check'); return JSON.parse(raw.stdout.text); },
+  };
+  const f = await fixture({ task, initial: { valid: false, reproduced: true, regressionPassed: true }, results: [{ valid: true, reproduced: false, regressionPassed: true }],
+    invoke: async args => {
+      if (args.role === 'scout') return { ready: true, criterion: 'reuse existing checks without generated files' };
+    },
+  });
+  f.adapter.execute = async ({ command, cwd }) => {
+    assert.equal(command, 'external-check');
+    return { stdout: { text: JSON.stringify({ ...JSON.parse(await readFile(path.join(cwd, 'candidate.json'))), summary: 'external checks', display: 'checked' }) } };
+  };
+  await f.engine.action(parent, { action: 'start', text: 'fix' }); await settle(f.engine);
+  assert.equal(f.engine.get(parent.id).best.trial, 1);
+  await f.engine.action(parent, { action: 'adopt' }); assert.equal(f.engine.get(parent.id).adopted, true);
+});
+
+test('runtime cache files are allowed but changing a frozen evaluator still blocks adoption', async () => {
+  const f = await fixture();
+  const execute = f.adapter.execute;
+  f.adapter.execute = async args => {
+    await mkdir(path.join(args.cwd, '.sla', '__pycache__'), { recursive: true });
+    await writeFile(path.join(args.cwd, '.sla', '__pycache__', 'helper.pyc'), 'runtime cache');
+    return execute(args);
+  };
+  await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
+  assert.equal(f.engine.get(parent.id).best.score, 90);
+  f.adapter.execute = async args => {
+    const output = await execute(args);
+    await writeFile(path.join(args.cwd, '.sla', 'evaluate.mjs'), 'changed');
+    return output;
+  };
+  await assert.rejects(f.engine.action(parent, { action: 'adopt' }), /固定评价依据内容被修改/);
+  assert.equal(JSON.parse(await readFile(path.join(f.cwd, 'candidate.json'))).score, 100);
+});
+
+test('extension metadata cannot overwrite core trial identity or remove advisor feedback', async () => {
+  const f = await fixture({ results: [{ valid: true, score: 90, revision: 99, number: 700, dir: 'wrong', status: 'invented', hypothesis: 'wrong' }] });
+  await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
+  const trial = f.engine.get(parent.id).trials[0];
+  assert.equal(trial.number, 1); assert.equal(trial.revision, 1); assert.equal(trial.status, 'kept');
+  assert.equal(trial.hypothesis, 'direction 1'); assert.match(trial.dir, /candidate-1$/);
+  assert.equal(trial.evaluation.revision, 99);
+  assert.match(f.calls.filter(x => x.role === 'advisor')[1].prompt, /fixture checks/);
+});
+
+test('native evaluator cannot bypass read-only adoption checks by omitting execute', async () => {
+  const task = { ...performanceTask, async evaluate({ cwd }) { return { ...JSON.parse(await readFile(path.join(cwd, 'candidate.json'))), summary: 'native checks' }; } };
+  const f = await fixture({ task });
+  await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
+  f.adapter.authorize = async () => { throw new Error('只读模式'); };
+  await assert.rejects(f.engine.action(parent, { action: 'adopt' }), /只读模式/);
+  assert.equal(JSON.parse(await readFile(path.join(f.cwd, 'candidate.json'))).score, 100);
+  assert.equal(f.engine.get(parent.id).adopted, false);
+  let checks = 0;
+  f.adapter.authorize = async () => { if (++checks === 3) throw new Error('写回前切换为只读'); };
+  await assert.rejects(f.engine.action(parent, { action: 'adopt' }), /写回前切换为只读/);
+  assert.equal(JSON.parse(await readFile(path.join(f.cwd, 'candidate.json'))).score, 100);
+});
+
+test('comparison and completion receive pure evaluation data even when fields overlap best metadata', async () => {
+  const seen = [];
+  const task = { ...performanceTask,
+    async evaluate({ cwd }) { return { ...JSON.parse(await readFile(path.join(cwd, 'candidate.json'))), summary: 'custom trial metric' }; },
+    compare(candidate, reference) { seen.push([candidate.trial, reference.trial]); return candidate.trial < reference.trial ? 'better' : 'equal'; },
+    complete(result) { return result.trial === 9; },
+  };
+  const f = await fixture({ task, initial: { valid: true, trial: 10 }, results: [{ valid: true, trial: 9 }] });
+  await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
+  const run = f.engine.get(parent.id);
+  assert.equal(run.best.trial, 1); assert.equal(run.best.evaluation.trial, 9); assert.equal(run.attempts, 1);
+  assert.deepEqual(seen, [[9, 10]]);
+  await f.engine.action(parent, { action: 'adopt' }); assert.equal(f.engine.get(parent.id).adopted, true);
 });

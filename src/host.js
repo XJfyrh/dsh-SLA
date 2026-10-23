@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { remote } from './remote.js';
 import { ExplorationEngine } from './engine.js';
 import { mountResearcher } from './researcher.js';
+import { TaskRegistry } from './task-registry.js';
 
 const runSchema = z.object({
   id: z.string(), sessionId: z.string(), goal: z.string(), cwd: z.string(), root: z.string(),
@@ -26,13 +27,14 @@ export default class SlaService extends TypertRemoteService {
   static inject = ['typert', 'agents', 'storageDomain', 'subagents', 'workingDirectory', 'shell', 'sandboxPolicy'];
   constructor(ctx) {
     super(ctx, 'sla');
+    this.tasks = new TaskRegistry();
     ctx.typert.register({ package: remote.package, face: 'host', schemas: [], model: { services: [], events: [], objects: [] }, invocations: remote.descriptors });
     this.calls = new Map();
-    this.researchOwners = new Set();
+    this.researchOwners = new Map();
     ctx.on('agent/created', async ({ agent }) => {
       if (!this.researchOwners.has(agent.session.header.parentSession)) return;
       // Harness awaits creation listeners before the child's first model request.
-      await mountResearcher(agent.ctx);
+      await mountResearcher(agent.ctx, this.researchOwners.get(agent.session.header.parentSession));
     });
     ctx.on('agent/pre-step', async ({ agent }, next) => {
       const call = this.calls.get(agent.id);
@@ -49,23 +51,28 @@ export default class SlaService extends TypertRemoteService {
   async initialize() {
     this.domain = await this.ctx.storageDomain.open(domain);
     const root = path.join(os.homedir(), '.dsh', 'sla-artifacts');
-    this.engine = new ExplorationEngine({ store: this.domain.table('runs'), root, adapter: {
+    this.engine = new ExplorationEngine({ store: this.domain.table('runs'), tasks: this.tasks, root, adapter: {
+      authorize: parent => this.assertWritable(parent),
       directory: async parent => {
         const policy = this.ctx.sandboxPolicy.resolve({ session: parent.session });
         if (policy.mode === 'read-only') throw new Error('当前会话是只读模式，请使用工作区内修改模式启动探索。');
         return this.ctx.workingDirectory.ensure(parent);
       },
       invoke: args => this.invoke(args),
-      evaluate: async ({ parent, cwd, signal }) => {
+      execute: async ({ parent, cwd, signal, command }) => {
         const policy = this.ctx.sandboxPolicy.resolve({ session: parent.session });
         if (policy.mode === 'read-only') throw new Error('会话已切换为只读，评价已停止。');
-        const spec = this.ctx.shell.resolve({ command: 'node .sla/evaluate.mjs', workdir: cwd, timeoutMs: 60000, stdoutMaxBytes: 128 * 1024, signal, sandboxPolicy: { ...policy, workspaceRoot: cwd } });
+        const spec = this.ctx.shell.resolve({ command, workdir: cwd, timeoutMs: 60000, stdoutMaxBytes: 128 * 1024, signal, sandboxPolicy: { ...policy, workspaceRoot: cwd } });
         const process = await this.ctx.shell.execute(spec);
         return process.result();
       },
       error: error => this.ctx.logger.error(String(error)),
     } });
     await this.engine.recover();
+  }
+  registerTask(task) { return this.tasks.register(task); }
+  assertWritable(parent) {
+    if (this.ctx.sandboxPolicy.resolve({ session: parent.session }).mode === 'read-only') throw new Error('当前会话是只读模式，未执行评价或写回。');
   }
   async get(sessionId) {
     await this.ready;
@@ -96,7 +103,7 @@ export default class SlaService extends TypertRemoteService {
       },
     });
     let activation;
-    this.researchOwners.add(owner.agent.id);
+    this.researchOwners.set(owner.agent.id, role);
     try {
       activation = await this.ctx.subagents.startActivation({
       provider: 'spawn', label: 'SLA · ' + role, delivery: 'caller', signal: combined,
