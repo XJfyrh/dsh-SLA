@@ -1,6 +1,6 @@
 {
   "name": "dsh-sla",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "从一句目标开始，自主建立依据并持续探索项目改进。",
@@ -17,6 +17,6 @@
   },
   "dsh": {
     "bundle": { "patch": "./cordis.patch.yml" },
-    "client": { "platform": "web", "immediately": true, "inject": ["@deepseek-ai/dsh-client-ui-conversation", "@deepseek-ai/dsh-api-remotes"] }
+    "client": { "platform": "web", "immediately": true, "inject": ["@deepseek-ai/dsh-client-ui-conversation", "@deepseek-ai/dsh-client-ui-chat", "@deepseek-ai/dsh-client-ui-sidebar-right", "@deepseek-ai/dsh-api-remotes"] }
   }
 }
