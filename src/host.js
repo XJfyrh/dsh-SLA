@@ -8,6 +8,7 @@ import { remote } from './remote.js';
 import { ExplorationEngine } from './engine.js';
 import { mountResearcher } from './researcher.js';
 import { TaskRegistry } from './task-registry.js';
+import { changePreview } from './change-preview.js';
 
 const runSchema = z.object({
   id: z.string(), sessionId: z.string(), goal: z.string(), cwd: z.string(), root: z.string(),
@@ -85,6 +86,10 @@ export default class SlaService extends TypertRemoteService {
   async get(sessionId) {
     await this.ready;
     return JSON.stringify(view(this.engine.get(sessionId)));
+  }
+  async changes(sessionId) {
+    await this.ready;
+    return JSON.stringify(await changePreview(this.engine.get(sessionId)));
   }
   async action(agent, input) {
     await this.ready;

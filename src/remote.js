@@ -15,6 +15,7 @@ export const remote = {
   package: 'dsh-sla',
   descriptors: [
     { id: 'dsh-sla:sla/get', namespace: 'sla', service: 'sla', method: 'get', invocation: { kind: 'direct' }, parameters: [parameter('sessionId')], result: stringCodec },
+    { id: 'dsh-sla:sla/changes', namespace: 'sla', service: 'sla', method: 'changes', invocation: { kind: 'direct' }, parameters: [parameter('sessionId')], result: stringCodec },
     { id: 'dsh-sla:sla/action', namespace: 'sla', service: 'sla', method: 'action', invocation: { kind: 'direct' }, parameters: [parameter('agent', 'agent'), parameter('input')], result: stringCodec },
   ],
 };

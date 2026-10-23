@@ -1,5 +1,6 @@
 function factory(require) {
   const React = require('react');
+  const { MarkdownText, DiffBlock } = require('@deepseek-ai/dsh-client-ui-primitives');
   const h = React.createElement;
   const decode = result => {
     if (!result.ok) throw new Error(result.error.message);
@@ -9,9 +10,24 @@ function factory(require) {
     zh: { review: '检查候选', directions: '探索方向', epochs: '轮次', localBest: '方向内最佳', noLocal: '尚无有效局部候选', reviews: '独立审查', parent: '起点', reassessment: '复验', 'local-kept': '方向内保留', 'no-checks': '未提出新检查', accepted: '检查已纳入', 'confirmed-regression': '发现回归', checking: '正在复验', title: '持续探索', short: '探索', intro: '在主对话中告诉我，你希望项目的什么变好。', allowance: '每轮最多 3 次尝试 · 20 分钟', pause: '暂停', stop: '结束探索', resume: '继续探索', adopt: '采用这个结果', adopted: '已采用', recheck: '采用前复验', details: '查看探索', steerHint: '有新的想法或要求？直接在主对话中补充。', baseline: '初始结果', best: '当前最佳', trials: '次尝试', experiments: '实验记录', evidence: '本地证据', unchanged: '本次探索尚未写回', changes: '查看改动', empty: '还没有完成的实验', preparing: '准备项目', running: '探索中', paused: '已暂停', pausing: '正在暂停', stopping: '正在结束', completed: '本轮结束', blocked: '需要处理', kept: '保留', invalid: '检查未通过', inconclusive: '未完成评价', 'no-improvement': '没有改善', error: '操作失败', revision: '版本', method: '判断依据', pending: '正在建立判断依据…', loading: '正在读取探索状态…', result: '探索结果', notes: '补充要求', adoptedSummary: '已写回项目，并保留原始快照。', noResult: '尚无通过检查的改进结果。' },
     en: { review: 'Review candidate', directions: 'Directions', epochs: 'Epoch', localBest: 'Local best', noLocal: 'No valid local candidate', reviews: 'Independent reviews', parent: 'Parent', reassessment: 'Reassessment', 'local-kept': 'Locally retained', 'no-checks': 'No new check proposed', accepted: 'Check accepted', 'confirmed-regression': 'Regression found', checking: 'Rechecking', title: 'Continuous exploration', short: 'Explore', intro: 'Describe what should improve in the main conversation.', allowance: 'Up to 3 trials · 20 min per tranche', pause: 'Pause', stop: 'Finish', resume: 'Continue', adopt: 'Adopt result', adopted: 'Adopted', recheck: 'Adoption recheck', details: 'View exploration', steerHint: 'New ideas or requirements? Add them in the main conversation.', baseline: 'Baseline', best: 'Current best', trials: 'trials', experiments: 'Experiments', evidence: 'Local evidence', unchanged: 'Source project unchanged', changes: 'View changes', empty: 'No completed experiments yet', preparing: 'Preparing', running: 'Exploring', paused: 'Paused', pausing: 'Pausing', stopping: 'Stopping', completed: 'Finished', blocked: 'Needs attention', kept: 'Kept', invalid: 'Checks failed', inconclusive: 'Inconclusive', 'no-improvement': 'No improvement', error: 'Action failed', revision: 'Revision', method: 'Evaluation criteria', pending: 'Establishing evaluation criteria…', loading: 'Loading exploration…', result: 'Exploration result', notes: 'Additional requirements', adoptedSummary: 'Applied to the project; original snapshot retained.', noResult: 'No verified improvement yet.' },
   };
+  Object.assign(dictionaries.zh, { copy: '复制', copied: '已复制', code: '代码', wrap: '自动换行', unwrap: '不换行', footnotes: '注释',
+    raw: '查看原始记录', rawPatch: '查看原始补丁', idea: '尝试思路', fullCriteria: '检查内容与方法', measurement: '衡量方式', checkGroup: '补充检查',
+    passed: '通过', failed: '未通过', unknown: '未完成', verified: '当前版本的检查已通过', failedCheck: '当前版本的检查未通过', unknownCheck: '尚无完整检查结果',
+    groups: '组', checkResults: '补充检查结果', purpose: '检查说明', loadingChanges: '正在读取文件改动…', previewChanged: '候选已更新，请重试以读取当前改动。', retry: '重试', noChanges: '没有文件改动',
+    files: '个文件', added: '新增', deleted: '删除', modified: '修改', binary: '二进制或非 UTF-8 文件，请在证据目录查看。', large: '文件较大，请在证据目录查看完整内容。',
+    changesHint: '初始项目 → 当前候选', original: '原始说明', methodChoice: '为什么选择这个方法', historical: '历史评价，未按当前依据复验', previous: '查看历史评价', expandDiff: '展开其余行', collapseDiff: '收起代码', resultValue: '实测结果' });
+  Object.assign(dictionaries.en, { copy: 'Copy', copied: 'Copied', code: 'Code', wrap: 'Wrap lines', unwrap: 'Unwrap lines', footnotes: 'Footnotes',
+    raw: 'Original record', rawPatch: 'Original patch', idea: 'Approach', fullCriteria: 'Checks and method', measurement: 'Measurement', checkGroup: 'Additional check',
+    passed: 'Passed', failed: 'Failed', unknown: 'Incomplete', verified: 'Current checks passed', failedCheck: 'Current checks failed', unknownCheck: 'No complete result yet',
+    groups: 'groups', checkResults: 'Additional check results', purpose: 'Check description', loadingChanges: 'Loading file changes…', previewChanged: 'The candidate changed. Retry to load its current changes.', retry: 'Retry', noChanges: 'No file changes',
+    files: 'files', added: 'Added', deleted: 'Deleted', modified: 'Modified', binary: 'Binary or non-UTF-8 file. See the evidence directory.', large: 'Large file. See the evidence directory for its full content.',
+    changesHint: 'Initial project → current candidate', original: 'Original description', methodChoice: 'Why this method', historical: 'Historical result; not checked against current criteria', previous: 'Historical evaluation', expandDiff: 'Expand remaining lines', collapseDiff: 'Collapse code', resultValue: 'Measured result' });
   const css = `
 .sla-panel,.sla-result{font:inherit;color:var(--dsw-alias-label-primary);font-size:13px;line-height:1.65;box-sizing:border-box}
 .sla-panel *,.sla-result *{box-sizing:border-box}.sla-panel{height:100%;overflow:auto;padding:22px 22px 32px}.sla-panel h2{font-size:19px;line-height:1.5;margin:0 0 10px;font-weight:600}.sla-panel h3{font-size:13px;margin:0;font-weight:600}.sla-panel p{margin:8px 0;overflow-wrap:anywhere}.sla-eyebrow{font-size:12px;color:var(--dsw-alias-label-secondary);margin-bottom:12px}.sla-top,.sla-actions,.sla-scores{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.sla-top{justify-content:space-between}.sla-tag{font-size:11px;color:var(--dsw-alias-label-secondary);border:1px solid var(--dsw-alias-border-l1);padding:2px 8px;border-radius:20px;white-space:nowrap}.sla-muted{color:var(--dsw-alias-label-secondary);font-size:12px}.sla-scores{gap:32px;padding:18px 0 12px}.sla-value{font-size:27px;line-height:1.4;font-variant-numeric:tabular-nums}.sla-panel button,.sla-result button,.sla-header{font:inherit;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;background:transparent;color:inherit;padding:6px 11px;cursor:pointer}.sla-panel button:hover,.sla-result button:hover,.sla-header:hover{background:var(--dsw-alias-interactive-bg-hover)}.sla-panel button:disabled{opacity:.5;cursor:default}.sla-panel .sla-primary{background:var(--dsw-alias-interactive-bg-hover);font-weight:600}.sla-panel button:focus-visible,.sla-result button:focus-visible,.sla-header:focus-visible,.sla-panel summary:focus-visible{outline:2px solid var(--dsw-alias-label-primary);outline-offset:3px}.sla-header{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;font-size:12px;white-space:nowrap;max-width:210px;overflow:hidden;text-overflow:ellipsis;color:var(--dsw-alias-label-secondary)}.sla-section{border-top:1px solid var(--dsw-alias-border-l1);margin-top:22px;padding-top:17px}.sla-panel summary{cursor:pointer;overflow-wrap:anywhere}.sla-panel summary:hover{color:var(--dsw-alias-label-primary)}.sla-trial{padding:12px 0;border-bottom:1px solid var(--dsw-alias-border-l1)}.sla-trial:last-child{border-bottom:0}.sla-panel pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.6 monospace;background:var(--dsw-alias-interactive-bg-hover);padding:12px;border-radius:8px;max-height:360px;overflow:auto}.sla-path{overflow-wrap:anywhere;font-size:11px;user-select:all}.sla-error{border-left:3px solid currentColor;padding-left:10px;margin:12px 0}.sla-result{margin:14px 0 4px;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;padding:13px 15px}.sla-result p{margin:6px 0 0;overflow-wrap:anywhere}.sla-result button{padding:3px 8px;font-size:12px}.sla-result strong{font-weight:600}.sla-result-score{font-variant-numeric:tabular-nums}.sla-hint{padding-top:10px}.sla-panel .sla-adopted{padding:12px;background:var(--dsw-alias-interactive-bg-hover);border-radius:10px;margin-top:15px}@media(max-width:520px){.sla-panel{padding:18px 16px}.sla-value{font-size:24px}.sla-header{max-width:150px}}
+`;
+  const evidenceCss = `
+.sla-panel{font-size:14px;line-height:1.7;container-type:inline-size}.sla-panel .sla-prose{min-width:0;overflow-wrap:anywhere}.sla-prose>div{font-size:inherit;line-height:inherit}.sla-prose h1,.sla-prose h2,.sla-prose h3{font-size:14px;line-height:1.6;margin:16px 0 7px;font-weight:600}.sla-prose p{margin:8px 0}.sla-prose ul,.sla-prose ol{padding-left:22px}.sla-prose li+li{margin-top:6px}.sla-prose table{display:block;max-width:100%;overflow-x:auto}.sla-prose pre{white-space:pre;overflow-wrap:normal;max-height:none;background:transparent;padding:0;border-radius:0;font:inherit}.sla-prose [data-code-block]{max-width:100%}.sla-section>summary{font-weight:600;padding-bottom:4px}.sla-details{margin:12px 0}.sla-details>summary{font-size:12px;color:var(--dsw-alias-label-secondary)}.sla-check-result{padding:10px 0}.sla-check-result>strong{font-size:14px}.sla-facts{margin:10px 0;display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13px}.sla-facts dt{color:var(--dsw-alias-label-secondary)}.sla-facts dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.sla-check-list{list-style:none;padding:0;margin:12px 0}.sla-check-list>li{border-top:1px solid var(--dsw-alias-border-l1);padding:8px 0}.sla-check-list details>summary{display:flex;gap:8px;justify-content:space-between;align-items:baseline;font-size:13px}.sla-check-list details>summary::before{content:'›';color:var(--dsw-alias-label-secondary)}.sla-check-list details[open]>summary::before{transform:rotate(90deg)}.sla-check-list details>summary>span:first-child{flex:1}.sla-status{font-size:12px;font-weight:500;white-space:nowrap}.sla-status-passed{color:#238353}.sla-status-failed{color:#c44444}.sla-status-unknown{color:var(--dsw-alias-label-secondary)}.sla-file{margin:12px 0;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;min-width:0;overflow:hidden}.sla-file>summary{padding:10px 12px;overflow-wrap:anywhere;font-weight:500}.sla-file-body{min-width:0}.sla-file-body pre{white-space:pre;overflow-wrap:normal;max-height:none;background:transparent;padding:0;border-radius:0;font:inherit}.sla-file-body>div{max-width:100%}.sla-file-body>p{padding:0 12px}.sla-file-kind{font-size:11px;color:var(--dsw-alias-label-secondary);margin-left:10px}.sla-method-title{font-weight:500}.sla-subsection{margin-top:16px}.sla-raw{white-space:pre-wrap!important;max-height:360px!important;overflow:auto!important;font:12px/1.6 monospace!important;padding:12px!important;background:var(--dsw-alias-interactive-bg-hover)!important}.sla-panel .sla-adopted{padding:15px}.sla-panel .sla-adopted>p{font-size:13px}.sla-panel .sla-adopted .sla-check-result{padding-bottom:0}.sla-measurement{font-size:13px;color:var(--dsw-alias-label-secondary);margin-top:10px}.sla-measurement strong{display:block;color:var(--dsw-alias-label-primary);font-weight:500}.sla-file-count{font-size:12px;font-weight:400;color:var(--dsw-alias-label-secondary)}
 `;
   const moving = run => run && ['running', 'preparing', 'pausing', 'stopping'].includes(run.status);
   const approved = run => !run.reviewSupported || (run.reviewedBest?.trial === run.best?.trial && run.reviewedBest?.criteriaVersion === run.criteriaVersion && !run.pendingReview);
@@ -30,6 +46,54 @@ function factory(require) {
         ctx.effect(() => () => runs.dispose());
         const tabKind = 'dsh-sla';
         const t = ctx.locale.bind('sla');
+        const toolbarLabels = () => ({ codeLabel: t('code'), wrapLabel: t('wrap'), unwrapLabel: t('unwrap') });
+        function Prose({ text }) {
+          if (!text) return null;
+          return h('div', { className: 'sla-prose' }, h(MarkdownText, { text: String(text), labels: {
+            code: { copyLabel: t('copy'), copiedLabel: t('copied'), toolbarLabels: toolbarLabels() }, footnotes: t('footnotes'),
+          } }));
+        }
+        function Original({ text, label = 'raw', title, code = false }) {
+          if (!text) return null;
+          return h('details', { className: 'sla-details' }, h('summary', null, title ?? t(label)), code ? h('pre', { className: 'sla-raw' }, text) : h(Prose, { text }));
+        }
+        function Evaluation({ result, run }) {
+          const view = evaluationView(result);
+          return h('div', { className: 'sla-check-result' },
+            h('strong', { className: `sla-status-${view.status}` }, t(view.status === 'passed' ? 'verified' : view.status === 'failed' ? 'failedCheck' : 'unknownCheck')),
+            h('dl', { className: 'sla-facts' },
+              (result?.display !== undefined || Number.isFinite(result?.score)) && h(React.Fragment, null, h('dt', null, t('resultValue')), h('dd', null, value(result), Number.isFinite(result?.score) && run.criteria?.unit ? ' ' + run.criteria.unit.split(/[，,；;]/)[0] : '')),
+              view.total > 0 && h(React.Fragment, null, h('dt', null, t('checkResults')), h('dd', null, `${view.passed} / ${view.total} ${t('groups')} ${t('passed')}`))),
+            view.total > 0 && h('ul', { className: 'sla-check-list' }, ...view.checks.map((check, i) => h('li', { key: check.id ?? i },
+              h('details', null, h('summary', null, h('span', null, `${t('checkGroup')} ${i + 1}`), h('span', { className: `sla-status sla-status-${check.passed === true ? 'passed' : check.passed === false ? 'failed' : 'unknown'}` }, t(check.passed === true ? 'passed' : check.passed === false ? 'failed' : 'unknown'))),
+                h(Prose, { text: check.summary }), h(Original, { label: 'purpose', text: run.checks?.find(c => c.id === check.id)?.summary }))))),
+            h(Original, { text: result?.summary }));
+        }
+        function Changes({ run, sessionId }) {
+          const [expanded, setExpanded] = React.useState(false);
+          const [attempt, setAttempt] = React.useState(0);
+          const [preview, setPreview] = React.useState(null);
+          const [failure, setFailure] = React.useState('');
+          const identity = `${run.id}:${run.best?.trial}:${run.criteriaVersion ?? run.revision}`;
+          React.useEffect(() => {
+            if (!expanded) return;
+            let active = true;
+            setPreview(null); setFailure('');
+            ctx.remote.sla.changes(sessionId).then(decode).then(data => { if (!active) return; if (!matchesPreview(data, run)) throw new Error(t('previewChanged')); setPreview(data); })
+              .catch(error => { if (active) setFailure(error.message); });
+            return () => { active = false; };
+          }, [expanded, identity, sessionId, attempt]);
+          const data = matchesPreview(preview, run) ? preview : null;
+          const labels = { ...toolbarLabels(), copy: t('copy'), copied: t('copied'), collapseAria: t('collapseDiff'), collapse: t('collapseDiff'), expandAria: n => `${t('expandDiff')} (${n})`, expand: n => `${t('expandDiff')} (${n})` };
+          return h('details', { className: 'sla-section', onToggle: e => { if (e.target === e.currentTarget) setExpanded(e.currentTarget.open); } },
+            h('summary', null, t('changes'), data && h('span', { className: 'sla-file-count' }, ` · ${data.files.length} ${t('files')}`)),
+            expanded && h(React.Fragment, null,
+              h('p', { className: 'sla-muted' }, t('changesHint')),
+              failure ? h('div', { role: 'alert' }, h('p', null, failure), h('button', { type: 'button', onClick: () => setAttempt(attempt + 1) }, t('retry'))) : !data ? h('p', { role: 'status' }, t('loadingChanges')) : data.files.length ? data.files.map(file => h('details', { className: 'sla-file', key: file.path, open: data.files.length === 1 },
+                h('summary', null, file.path, h('span', { className: 'sla-file-kind' }, t(file.kind))),
+                h('div', { className: 'sla-file-body' }, file.omitted ? h('p', null, t(file.omitted)) : h(DiffBlock, { diffs: [{ path: file.path, oldText: file.oldText, newText: file.newText }], labels, maxLines: 18 })))) : h('p', null, t('noChanges')),
+              h(Original, { text: run.best?.diff, label: 'rawPatch', code: true })));
+        }
         ctx.effect(() => ctx.sidebarRightTabs.register({ id: tabKind, kind: tabKind, title: () => t('title') }));
         function useRun(sessionId) {
           const entry = runs.forSession(sessionId);
@@ -63,45 +127,50 @@ function factory(require) {
             if (name === 'adopt' && result?.adopted) collapseAdoptedPanel(ctx.sidebarRight, sessionId, info.tab.id);
           }
           const button = (label, name, disabled = false, primary = false) => h('button', { type: 'button', disabled: busy || disabled, className: primary ? 'sla-primary' : undefined, onClick: () => action(name) }, t(label));
-          return h('section', { className: 'sla-panel', 'aria-label': t('title') }, h('style', null, css),
+          return h('section', { className: 'sla-panel', 'aria-label': t('title') }, h('style', null, css + evidenceCss),
             h('div', { className: 'sla-top sla-eyebrow' }, t('title'), run && h('span', { className: 'sla-tag' }, t(state(run)))),
             error && h('p', { role: 'alert', className: 'sla-error' }, t('error'), '：', error),
             !run ? h('p', null, run === undefined ? t('loading') : t('intro')) : h(React.Fragment, null,
               h('h2', null, run.goal),
-              !run.adopted && h('p', { 'aria-live': 'polite' }, run.message),
+              !run.adopted && h('div', { 'aria-live': 'polite' }, h(Prose, { text: run.message })),
               run.criteria && h(React.Fragment, null,
                 h('div', { className: 'sla-scores' },
                   h('div', null, h('div', { className: 'sla-muted' }, t('baseline')), h('div', { className: 'sla-value' }, value(run.baseline))),
                   h('div', null, h('div', { className: 'sla-muted' }, t('best')), h('div', { className: 'sla-value' }, value(run.best)))),
                 h('p', { className: 'sla-muted' }, run.criteria.unit)),
-              run.adopted && h('div', { className: 'sla-adopted' }, h('strong', null, t('adopted')), h('p', null, t('adoptedSummary')), run.adoptionCheck && h('details', { className: 'sla-muted' }, h('summary', null, t('recheck')), h('p', null, run.adoptionCheck.summary))),
+              run.adopted && h('div', { className: 'sla-adopted' }, h('strong', null, t('adopted')), h('p', null, t('adoptedSummary')), run.adoptionCheck && h('details', { className: 'sla-details' }, h('summary', null, t('recheck')), h(Evaluation, { result: run.adoptionCheck, run }))),
               !run.adopted && h(React.Fragment, null,
                 h('div', { className: 'sla-actions' },
                   moving(run) ? button('pause', 'pause', run.status === 'pausing' || run.status === 'stopping') : !run.adoptionPending && button('resume', 'resume', false, true),
                   moving(run) && button('stop', 'stop', run.status === 'stopping'),
                   !moving(run) && !run.rebuild && !run.adoptionPending && run.best?.trial > 0 && (approved(run) ? button('adopt', 'adopt', false, true) : button('review', 'review', false, true))),
                 h('p', { className: 'sla-muted sla-hint' }, t('steerHint'))),
-              run.best?.diff && h('details', { className: 'sla-section' }, h('summary', null, t('changes')), h('pre', null, run.best.diff)),
-              h('details', { className: 'sla-section' }, h('summary', null, t('method'), ` · ${t('revision')} ${run.criteriaVersion ?? run.revision}`), h('p', null, run.criteria?.criterion ?? t('pending')),
-                run.task && h('p', { className: 'sla-muted' }, `${run.task.name} · ${run.task.version}`, run.selectionReason ? ` · ${run.selectionReason}` : ''),
-                ...(run.checks ?? []).map(check => h('p', { key: check.id }, check.summary)),
-                run.notes.length > 0 && h(React.Fragment, null, h('h3', null, t('notes')), ...run.notes.map((note, i) => h('p', { key: i }, note)))),
+              run.best?.trial > 0 && h(Changes, { key: run.id, run, sessionId }),
+              h('details', { className: 'sla-section' }, h('summary', null, t('method'), ` · ${t('revision')} ${run.criteriaVersion ?? run.revision}`),
+                h('div', { className: 'sla-method-title' }, h(Prose, { text: run.criteria?.title ?? t('pending') })),
+                run.criteria?.unit && h('div', { className: 'sla-measurement' }, h('strong', null, t('measurement')), h(Prose, { text: run.criteria.unit })),
+                h(Original, { text: criteriaMarkdown(run.criteria?.criterion), label: 'fullCriteria' }),
+                run.task && h('p', { className: 'sla-muted' }, `${run.task.name} · ${run.task.version}`),
+                h(Original, { text: run.selectionReason, label: 'methodChoice' }),
+                ...(run.checks ?? []).map((check, i) => h(Original, { key: check.id, title: `${t('checkGroup')} ${i + 1} · ${t('purpose')}`, text: check.summary })),
+                run.notes.length > 0 && h('div', { className: 'sla-subsection' }, h('h3', null, t('notes')), ...run.notes.map((note, i) => h(Prose, { key: i, text: note })))),
               run.directions?.length > 0 && h('div', { className: 'sla-section' }, h('div', { className: 'sla-top' }, h('h3', null, t('directions')), h('span', { className: 'sla-muted' }, `${t('epochs')} ${run.epochs?.length ?? 0}`)),
-                ...run.directions.filter(d => d.revision === run.revision).map(d => h('details', { key: d.id, className: 'sla-trial' }, h('summary', null, d.id, ' · ', value(d.best)), h('p', null, d.hypothesis), h('p', { className: 'sla-muted' }, d.best ? `#${d.best.trial} · ${t('localBest')}` : t('noLocal'))))),
+                ...run.directions.filter(d => d.revision === run.revision).map(d => h('details', { key: d.id, className: 'sla-trial' }, h('summary', null, d.id, ' · ', value(d.best)), h(Prose, { text: d.hypothesis }), h('p', { className: 'sla-muted' }, d.best ? `#${d.best.trial} · ${t('localBest')}` : t('noLocal'))))),
               run.reviews?.length > 0 && h('details', { className: 'sla-section' }, h('summary', null, t('reviews')),
-                ...run.reviews.map(r => h('div', { key: r.id, className: 'sla-trial' }, h('strong', null, `#${r.targetTrial} · ${t(r.status)}`), h('p', null, r.summary || r.error), r.summary && r.error && h('p', { className: 'sla-muted' }, r.error)))),
+                ...run.reviews.map(r => h('details', { key: r.id, className: 'sla-trial' }, h('summary', null, `#${r.targetTrial} · ${t(r.status)}`), r.error && h(Prose, { text: r.error }), h(Prose, { text: r.summary })))),
               h('div', { className: 'sla-section' }, h('div', { className: 'sla-top' }, h('h3', null, t('experiments')), h('span', { className: 'sla-muted' }, `${run.attempts} / ${run.limit} ${t('trials')}`)),
                 run.trials.length === 0 && h('p', { className: 'sla-muted' }, t('empty')),
                 ...run.trials.map(trial => {
-                  const assessment = (run.assessments ?? []).filter(a => a.trial === trial.number && a.revision === run.revision && a.criteriaVersion === run.criteriaVersion).at(-1);
-                  const shown = assessment?.evaluation ?? trial;
-                  const label = assessment ? `${t('reassessment')}${shown.valid ? '' : ' · ' + t('invalid')}` : t(trial.status);
+                  const { assessment, evaluation: shown, historical } = currentEvaluation(run, trial);
+                  const label = historical ? t('historical') : assessment ? `${t('reassessment')}${shown.valid ? '' : ' · ' + t('invalid')}` : t(trial.status);
                   return h('details', { key: trial.number, className: 'sla-trial' },
                   h('summary', null, `#${trial.number} · ${label}`, shown.display !== undefined || shown.score !== undefined ? ` · ${value(shown)}` : '', ` · ${t('revision')} ${assessment?.criteriaVersion ?? trial.criteriaVersion ?? trial.revision}`),
                   trial.direction && h('p', { className: 'sla-muted' }, `${t('epochs')} ${trial.epoch} · ${trial.direction} · ${t('parent')} #${trial.parentTrial}`),
-                  assessment && h('p', { className: 'sla-muted' }, `${t('revision')} ${trial.criteriaVersion ?? trial.revision} · ${t(trial.status)}`),
-                  h('p', null, trial.hypothesis), h('p', null, trial.summary),
-                  ...(run.assessments ?? []).filter(a => a.trial === trial.number).map(a => h('p', { key: a.criteriaVersion }, `${t('reassessment')} v${a.criteriaVersion}: ${a.evaluation.summary}`)),
+                  !historical && h(Evaluation, { result: shown, run }),
+                  h(Original, { label: 'idea', text: trial.hypothesis }),
+                  historical && h(Prose, { text: trial.summary }),
+                  assessment && h(Original, { label: 'previous', text: `**${t('revision')} ${trial.criteriaVersion ?? trial.revision} · ${t(trial.status)}**\n\n${trial.summary ?? ''}` }),
+                  ...(run.assessments ?? []).filter(a => a.trial === trial.number && a !== assessment).map(a => h(Original, { key: a.criteriaVersion, label: 'previous', text: `**${t('revision')} ${a.criteriaVersion}**\n\n${a.evaluation.summary}` })),
                   trial.changes?.length > 0 && h('p', { className: 'sla-muted' }, trial.changes.join('、'))); })),
               h('details', { className: 'sla-section' }, h('summary', null, t('evidence')), h('p', { className: 'sla-path' }, run.root)),
               !run.adopted && h('p', { className: 'sla-muted sla-section' }, run.settings ? `${run.settings.maxTrials} ${t('trials')} · ${run.settings.maxMinutes} min · ${run.settings.directions} ${t('directions')} × ${run.settings.localTrials}` : t('allowance'), ' · ', t('unchanged'))));
