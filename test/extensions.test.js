@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { TaskRegistry, validateEvaluation, compare } from '../src/task-registry.js';
 import { performanceTask } from '../extensions/performance.js';
 import { bugfixTask } from '../extensions/bugfix.js';
+import { parseResult } from '../src/evaluation.js';
 
 test('registry rejects duplicates, binds exact version, disposes one registration only', () => {
   const tasks = new TaskRegistry();
@@ -23,4 +24,11 @@ test('evaluation accepts categorical results, refuses contradictory bugfix evide
   assert.throws(() => compare({ compare: () => true }, {}, {}, {}), /扩展比较/);
   const execute = async () => ({ exitCode: 0, stdout: { text: 'SLA_RESULT '+JSON.stringify({ valid: true, reproduced: true, regressionPassed: true, summary: 'false success' }), truncated: false }, stderr: { text: '' } });
   await assert.rejects(bugfixTask.evaluate({ execute }), /相互矛盾/);
+});
+
+test('completed negative checks stay distinct from evaluation process failures', () => {
+  const result = { exitCode: 0, stdout: { text: 'SLA_RESULT {"valid":false,"summary":"target bug reproduced"}', truncated: false }, stderr: { text: '' } };
+  assert.equal(parseResult(result).valid, false);
+  assert.throws(() => parseResult({ ...result, exitCode: 1 }), /exit=1.*target bug reproduced/);
+  assert.throws(() => parseResult({ ...result, timedOut: true }), /评价没有完成/);
 });

@@ -10,6 +10,7 @@ export const bugfixTask = {
 先调查问题并复用项目已有测试。只允许在 .sla/ 创建冻结的复现与回归检查，不修改源代码或原有测试。调查阶段不修复缺陷。
 创建 .sla/evaluate.mjs，可调用项目已有运行时/测试入口。每次运行在 45 秒内结束，不安装依赖。
 最后一行输出 SLA_RESULT {"valid":布尔,"reproduced":布尔,"regressionPassed":布尔,"summary":"实际检查结果"}。
+检查正常完成时始终 exit 0，包括 reproduced:true 或 valid:false；只有设施、导入或语法错误才非零退出。不要把缺陷复现当成评价进程失败。运行时不改写 .sla/ 或项目文件，输出日志到 stdout；需要缓存时使用 .dsh/cache/。Windows 测试可用 node --test --experimental-test-isolation=none，避免子进程管道 EPERM。
 reproduced 表示目标缺陷被实际断言复现，不能用进程报错、语法错误或依赖缺失代替。regressionPassed 表示不包含目标缺陷用例的相关原有行为检查通过。valid 当且仅当缺陷不再复现且回归检查通过。
 复现检查必须同时验证正确的预期行为，不能因为返回不同的另一种错误结果就判修复。保持失败可见，不跳过或删除原有断言；评价程序遇到设施错误应非零退出。
 初始项目应该 reproduced:true、regressionPassed:true、valid:false。准备不出明确复现时 ready:false，说明缺少条件。不要编造分数。criterion 描述复现条件、正确行为及回归范围；unit 返回空字符串。
