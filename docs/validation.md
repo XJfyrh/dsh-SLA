@@ -14,6 +14,12 @@
 
 使用同一版冻结检查脱离模型重放：初始项目为 `reproduced:true / regressionPassed:true / valid:false`；旧候选为 `reproduced:false / regressionPassed:false / valid:false`；最终候选为 `reproduced:false / regressionPassed:true / valid:true`。完整输出在 `artifacts/extensibility/live/bugfix-replay/`；运行 `node .sla/evaluate.mjs` 可分别重放其中 `initial`、`rejected-v1`、`best` 三个目录。最终界面截图为 `live/bugfix-adopted.png`。
 
+性能真实探索 `764d9e18-e26b-4d35-ad40-12ffb11b2365`：自动选择 `code-performance@1.0.0`。第一版检查未覆盖数组自定义迭代器，索引快路径因此被误保留；独立反例在采用前发现，主对话补充后重建依据。重建曾两次达到 24 步而未提交结果：补充已实测的 Node 主进程测试入口，并通过 DSH 原生动态上下文提示剩余步数，保留原上限，随后完成调查与实验。
+
+第二版固定工作负载为两个 50,000 元素数组：一组每个值出现两次，一组几乎无重复；预热后重复 3 次，取两组合计耗时的中位数。基线 **1214.226 ms**，最终候选 **6.162 ms**，采用前复验 **6.161 ms**；17/17 项检查通过，含原有 3 项测试、迭代协议反例与 300 组确定性随机对照。最终只写回 `index.js`，保留 `for...of` 并改用 Set 查找，源项目字节与候选一致。第一版的 583.66 / 4.39 ms 使用另一套负载，不能与第二版比较。
+
+性能离线重放在 `artifacts/extensibility/live/performance-replay/`：初始项目 17/17、1213.575 ms；旧候选仅 12/17，通过更快也判无效；最终候选 17/17、6.655 ms。每个目录的 `node .sla/evaluate.mjs` 可独立复跑，原始输出与 SHA-256 清单保留。两个例子均有人工反例纠偏，不代表模型自动生成的检查已覆盖所有行为；反例方法已加入随包示例 Skill。
+
 扩展接口与示例见[扩展说明](extensions.md)。本版本仍以文件项目为候选，没有远程系统快照适配器、多方向并行 Epoch 或独立 Token 计费账本。
 
 ## 0.1 首版验收
