@@ -5,7 +5,55 @@ import os from 'node:os';
 import path from 'node:path';
 import { inventory } from '../src/workspace.js';
 import { changePreview } from '../src/change-preview.js';
-import { criteriaMarkdown, evaluationView, currentEvaluation, matchesPreview } from '../src/presentation.js';
+import { criteriaMarkdown, evaluationView, currentEvaluation, matchesPreview, candidateBrief, checkPresentation, decisionView } from '../src/presentation.js';
+
+const decisionRun = (evaluation = { valid: true, score: 2 }) => ({
+  revision: 1, criteriaVersion: 2, status: 'completed', reviewSupported: true,
+  reviewedBest: { trial: 1, revision: 1, criteriaVersion: 2 }, best: { trial: 1 },
+  trials: [{ number: 1, revision: 1, criteriaVersion: 1, evaluation: { valid: true, score: 1 }, report: '### 改动说明\n保留输入顺序。\n### 尚未验证\n大型数据尚未验证。' }, { number: 2, revision: 1, criteriaVersion: 1, evaluation: { valid: true, score: 0.1 } }],
+  assessments: [{ trial: 1, revision: 1, criteriaVersion: 2, evaluation }, { trial: 2, revision: 1, criteriaVersion: 2, evaluation: { valid: false, score: 0.1 } }],
+});
+
+test('decision uses current assessment or adoption recheck, preserves evidence and explains exclusions', () => {
+  const run = decisionRun(), before = structuredClone(run);
+  const view = decisionView(run);
+  assert.equal(view.ready, true); assert.equal(view.evaluation.score, 2);
+  assert.deepEqual(view.excluded, [2]); assert.equal(view.brief.change, '保留输入顺序。');
+  const adopted = decisionView({ ...run, adopted: true, adoptionCheck: { valid: true, score: 3 } });
+  assert.equal(adopted.evaluation.score, 3); assert.equal(adopted.ready, false);
+  assert.deepEqual(run, before);
+});
+
+test('no actionable or comparable result leaks through rebuild, outdated review, missing or failed evaluation', () => {
+  const run = decisionRun();
+  for (const patch of [{ rebuild: true }, { status: 'running' }, { pendingReview: { id: 'x' } }, { adoptionPending: true }, { reviewedBest: { trial: 1, revision: 0, criteriaVersion: 2 } }, { assessments: [] }]) assert.equal(decisionView({ ...run, ...patch }).ready, false);
+  assert.equal(decisionView({ ...run, rebuild: true }).trial, null);
+  assert.equal(decisionView({ ...run, assessments: [] }).evaluation, null);
+  assert.equal(decisionView(decisionRun({ valid: true, supplementaryChecks: [{ passed: false }] })).ready, false);
+  assert.equal(decisionView(decisionRun({ summary: 'passed' })).ready, false);
+});
+
+test('non-numeric tasks retain their own result language without performance assumptions', () => {
+  const view = decisionView(decisionRun({ valid: true, display: '修复通过' }));
+  assert.equal(view.ready, true); assert.equal(view.evaluation.display, '修复通过'); assert.equal(view.evaluation.score, undefined);
+});
+
+test('semantic check metadata and historical finding remain separate from current passed result', () => {
+  const check = { id: 'a', passed: true, summary: '当前候选通过' };
+  const run = { checks: [{ id: 'a', title: '自定义迭代器语义', purpose: '保持输入的迭代协议。', summary: '旧候选未通过' }], reviews: [{ id: 'a', targetTrial: 4, criteriaVersion: 2, publishedVersion: 3, status: 'confirmed-regression' }] };
+  const view = checkPresentation(run, check, 0);
+  assert.equal(view.title, '自定义迭代器语义'); assert.equal(view.origin.trial, 4); assert.equal(view.origin.version, 2);
+  assert.equal(view.original, '旧候选未通过'); assert.equal(check.passed, true);
+  const legacy = checkPresentation({ checks: [{ id: 'a', summary: 'legacy' }] }, check, 0);
+  assert.equal(legacy.title, null); assert.equal(legacy.origin, null);
+});
+
+test('only bounded explicit worker sections become user briefs; legacy logs stay original', () => {
+  assert.deepEqual(candidateBrief('all passed; great improvement'), {});
+  assert.deepEqual(candidateBrief('```md\n### 改动说明\nThis is a quoted template.\n```'), {});
+  assert.deepEqual(candidateBrief('### 改动说明\n' + 'x'.repeat(501)), {});
+  assert.deepEqual(candidateBrief('### 改动说明\n调整边界。\n### 尚未验证\n其它平台。\n### 实现记录\nSLA_RESULT {}'), { change: '调整边界。', unverified: '其它平台。' });
+});
 
 test('legacy criteria become paragraphs and lists without rewriting inline code or authored Markdown', () => {
   const text = 'criterion：检查：(1) 运行 `fn();(2)`；(2) 保持行为。性能：重复测量。';

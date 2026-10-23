@@ -51,4 +51,8 @@ export function apply(ctx) {
 
 `evaluate` 返回 `{passed:boolean, summary:string}`，不要复用缺陷基线的 `valid`。完整例子见 [`extensions/code-review.js`](../extensions/code-review.js)；Node 命令属于这个代码任务方法，核心不要求此运行时。新增检查会在初始项目和候选上独立执行，纳入后每次评价继续执行。核心把补充检查通过与任务 `valid` 合并为最终有效性，并在 `supplementaryChecks` 中记录结果，任务扩展不应占用这个字段。
 
+0.3.2 支持审查结果附带 `title`（最多 60 字符的行为名称）和 `purpose`（最多 300 字符的保护行为说明）。二者由扩展的 schema 与 prompt 声明，核心只保存非空且符合长度的字符串，不参与通过判定；旧扩展可以继续只返回 `{hasChecks, summary}`。`purpose` 不包含当前通过/失败结论，提出检查时的发现放在 `summary`。界面使用本次 `supplementaryChecks` 显示结果，将原始 `summary` 放在有候选、版本标注的历史来源下。默认代码任务已采用新字段，评价与比较规则未变化，因此任务版本保持 `1.1.0`。
+
+Worker 继续使用 DSH 普通文本输出。核心提示词约定 `### 改动说明` 和 `### 尚未验证` 两个简短 Markdown 小节；界面仅提取明确标题下不超过 500 字符的内容，其他文字保留在执行记录。缺少或过长时显示文件改动与缺失说明，不从假设或日志推断结果。
+
 任务可以不提供 review；这表示没有独立审查能力，不是审查通过。默认代码任务因新增审查语义升级为 `1.1.0`。发布、恢复与候选身份规则见[核心规则](core.md)。

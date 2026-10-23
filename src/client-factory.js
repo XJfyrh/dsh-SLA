@@ -22,15 +22,17 @@ function factory(require) {
     groups: 'groups', checkResults: 'Additional check results', purpose: 'Check description', loadingChanges: 'Loading file changes…', previewChanged: 'The candidate changed. Retry to load its current changes.', retry: 'Retry', noChanges: 'No file changes',
     files: 'files', added: 'Added', deleted: 'Deleted', modified: 'Modified', binary: 'Binary or non-UTF-8 file. See the evidence directory.', large: 'Large file. See the evidence directory for its full content.',
     changesHint: 'Initial project → current candidate', original: 'Original description', methodChoice: 'Why this method', historical: 'Historical result; not checked against current criteria', previous: 'Historical evaluation', expandDiff: 'Expand remaining lines', collapseDiff: 'Collapse code', resultValue: 'Measured result' });
+  Object.assign(dictionaries.zh, { live: '探索最新状态', updated: '更新于', syncFailed: '状态同步失败，以下保留上次记录。', goal: '本次目标', changed: '改了什么', authorReport: '执行者的改动说明', legacyBrief: '旧记录没有独立的改动摘要，可展开执行记录或查看文件改动。', workerRecord: '查看执行记录', whyChosen: '为什么保留', chosen: '按当前评价规则保留候选', candidate: '候选', initialProject: '初始项目', criterionVersion: '评价版本', excluded: '当前检查未通过，已排除', reviewRequired: '需完成候选审查后才能采用。', verifiedScope: '结论覆盖当前检查；完整检查范围见判断依据。', unverified: '尚未验证 · 执行者说明', noUnverified: '执行记录未单列尚未验证的范围。', ready: '可以采用；采用时会再次检查并核对项目改动。', pendingReview: '新增检查尚在复验，候选排序尚未更新。', currentCheck: '本次复验结果', checkOrigin: '检查来源 · 历史审查记录', originHint: '以下是提出检查时的发现，不代表当前候选的结果。', unnamedCheck: '旧记录未提供行为名称', unknownOrigin: '旧记录未保存审查来源', introduced: '纳入评价版本', next: '接下来', continueHint: '可以继续尝试，或在主对话补充要求。', reviewNow: '请先检查候选，再决定是否采用。', adoptedValue: '采用时复验', selectedValue: '候选实测', selectedTrial: '当前保留', changeFiles: '改动文件', checkCurrentHint: '当前结果以本次复验为准。' });
+  Object.assign(dictionaries.en, { live: 'Latest exploration state', updated: 'Updated', syncFailed: 'Sync failed. Showing the last known state.', goal: 'Goal', changed: 'What changed', authorReport: 'Worker change description', legacyBrief: 'This older record has no separate change brief. Open the worker report or file changes.', workerRecord: 'Worker report', whyChosen: 'Why retained', chosen: 'Retained under the current evaluation rules', candidate: 'Candidate', initialProject: 'Initial project', criterionVersion: 'Criteria version', excluded: 'Excluded by current checks', reviewRequired: 'Candidate review is required before adoption.', verifiedScope: 'The conclusion covers the current checks; see the criteria for scope.', unverified: 'Unverified · worker statement', noUnverified: 'The worker report has no separate unverified scope.', ready: 'Ready to adopt. Adoption reruns checks and verifies project changes.', pendingReview: 'Additional checks are being evaluated; ranking has not yet been updated.', currentCheck: 'This recheck result', checkOrigin: 'Check origin · historical review', originHint: 'These findings describe when the check was proposed, not the current candidate.', unnamedCheck: 'Older record has no behavior title', unknownOrigin: 'Review origin was not recorded', introduced: 'Added in criteria version', next: 'Next', continueHint: 'Continue exploring or add requirements in the conversation.', reviewNow: 'Review the candidate before deciding to adopt.', adoptedValue: 'Adoption recheck', selectedValue: 'Candidate measurement', selectedTrial: 'Currently retained', changeFiles: 'Changed files', checkCurrentHint: 'Use this recheck for the current outcome.' });
   const css = `
 .sla-panel,.sla-result{font:inherit;color:var(--dsw-alias-label-primary);font-size:13px;line-height:1.65;box-sizing:border-box}
 .sla-panel *,.sla-result *{box-sizing:border-box}.sla-panel{height:100%;overflow:auto;padding:22px 22px 32px}.sla-panel h2{font-size:19px;line-height:1.5;margin:0 0 10px;font-weight:600}.sla-panel h3{font-size:13px;margin:0;font-weight:600}.sla-panel p{margin:8px 0;overflow-wrap:anywhere}.sla-eyebrow{font-size:12px;color:var(--dsw-alias-label-secondary);margin-bottom:12px}.sla-top,.sla-actions,.sla-scores{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.sla-top{justify-content:space-between}.sla-tag{font-size:11px;color:var(--dsw-alias-label-secondary);border:1px solid var(--dsw-alias-border-l1);padding:2px 8px;border-radius:20px;white-space:nowrap}.sla-muted{color:var(--dsw-alias-label-secondary);font-size:12px}.sla-scores{gap:32px;padding:18px 0 12px}.sla-value{font-size:27px;line-height:1.4;font-variant-numeric:tabular-nums}.sla-panel button,.sla-result button,.sla-header{font:inherit;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;background:transparent;color:inherit;padding:6px 11px;cursor:pointer}.sla-panel button:hover,.sla-result button:hover,.sla-header:hover{background:var(--dsw-alias-interactive-bg-hover)}.sla-panel button:disabled{opacity:.5;cursor:default}.sla-panel .sla-primary{background:var(--dsw-alias-interactive-bg-hover);font-weight:600}.sla-panel button:focus-visible,.sla-result button:focus-visible,.sla-header:focus-visible,.sla-panel summary:focus-visible{outline:2px solid var(--dsw-alias-label-primary);outline-offset:3px}.sla-header{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;font-size:12px;white-space:nowrap;max-width:210px;overflow:hidden;text-overflow:ellipsis;color:var(--dsw-alias-label-secondary)}.sla-section{border-top:1px solid var(--dsw-alias-border-l1);margin-top:22px;padding-top:17px}.sla-panel summary{cursor:pointer;overflow-wrap:anywhere}.sla-panel summary:hover{color:var(--dsw-alias-label-primary)}.sla-trial{padding:12px 0;border-bottom:1px solid var(--dsw-alias-border-l1)}.sla-trial:last-child{border-bottom:0}.sla-panel pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.6 monospace;background:var(--dsw-alias-interactive-bg-hover);padding:12px;border-radius:8px;max-height:360px;overflow:auto}.sla-path{overflow-wrap:anywhere;font-size:11px;user-select:all}.sla-error{border-left:3px solid currentColor;padding-left:10px;margin:12px 0}.sla-result{margin:14px 0 4px;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;padding:13px 15px}.sla-result p{margin:6px 0 0;overflow-wrap:anywhere}.sla-result button{padding:3px 8px;font-size:12px}.sla-result strong{font-weight:600}.sla-result-score{font-variant-numeric:tabular-nums}.sla-hint{padding-top:10px}.sla-panel .sla-adopted{padding:12px;background:var(--dsw-alias-interactive-bg-hover);border-radius:10px;margin-top:15px}@media(max-width:520px){.sla-panel{padding:18px 16px}.sla-value{font-size:24px}.sla-header{max-width:150px}}
 `;
   const evidenceCss = `
 .sla-panel{font-size:14px;line-height:1.7;container-type:inline-size}.sla-panel .sla-prose{min-width:0;overflow-wrap:anywhere}.sla-prose>div{font-size:inherit;line-height:inherit}.sla-prose h1,.sla-prose h2,.sla-prose h3{font-size:14px;line-height:1.6;margin:16px 0 7px;font-weight:600}.sla-prose p{margin:8px 0}.sla-prose ul,.sla-prose ol{padding-left:22px}.sla-prose li+li{margin-top:6px}.sla-prose table{display:block;max-width:100%;overflow-x:auto}.sla-prose pre{white-space:pre;overflow-wrap:normal;max-height:none;background:transparent;padding:0;border-radius:0;font:inherit}.sla-prose [data-code-block]{max-width:100%}.sla-section>summary{font-weight:600;padding-bottom:4px}.sla-details{margin:12px 0}.sla-details>summary{font-size:12px;color:var(--dsw-alias-label-secondary)}.sla-check-result{padding:10px 0}.sla-check-result>strong{font-size:14px}.sla-facts{margin:10px 0;display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13px}.sla-facts dt{color:var(--dsw-alias-label-secondary)}.sla-facts dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.sla-check-list{list-style:none;padding:0;margin:12px 0}.sla-check-list>li{border-top:1px solid var(--dsw-alias-border-l1);padding:8px 0}.sla-check-list details>summary{display:flex;gap:8px;justify-content:space-between;align-items:baseline;font-size:13px}.sla-check-list details>summary::before{content:'›';color:var(--dsw-alias-label-secondary)}.sla-check-list details[open]>summary::before{transform:rotate(90deg)}.sla-check-list details>summary>span:first-child{flex:1}.sla-status{font-size:12px;font-weight:500;white-space:nowrap}.sla-status-passed{color:#238353}.sla-status-failed{color:#c44444}.sla-status-unknown{color:var(--dsw-alias-label-secondary)}.sla-file{margin:12px 0;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;min-width:0;overflow:hidden}.sla-file>summary{padding:10px 12px;overflow-wrap:anywhere;font-weight:500}.sla-file-body{min-width:0}.sla-file-body pre{white-space:pre;overflow-wrap:normal;max-height:none;background:transparent;padding:0;border-radius:0;font:inherit}.sla-file-body>div{max-width:100%}.sla-file-body>p{padding:0 12px}.sla-file-kind{font-size:11px;color:var(--dsw-alias-label-secondary);margin-left:10px}.sla-method-title{font-weight:500}.sla-subsection{margin-top:16px}.sla-raw{white-space:pre-wrap!important;max-height:360px!important;overflow:auto!important;font:12px/1.6 monospace!important;padding:12px!important;background:var(--dsw-alias-interactive-bg-hover)!important}.sla-panel .sla-adopted{padding:15px}.sla-panel .sla-adopted>p{font-size:13px}.sla-panel .sla-adopted .sla-check-result{padding-bottom:0}.sla-measurement{font-size:13px;color:var(--dsw-alias-label-secondary);margin-top:10px}.sla-measurement strong{display:block;color:var(--dsw-alias-label-primary);font-weight:500}.sla-file-count{font-size:12px;font-weight:400;color:var(--dsw-alias-label-secondary)}
+.sla-decision{padding:14px 0}.sla-decision h3{margin-top:14px}.sla-decision h3:first-child{margin-top:0}.sla-origin{border-left:2px solid var(--dsw-alias-border-l1);padding:2px 0 2px 12px;margin:12px 0}.sla-next{padding:12px;border-radius:8px;background:var(--dsw-alias-interactive-bg-hover)}.sla-check-list .sla-origin summary{display:list-item}.sla-check-list .sla-origin summary::before{content:none}.sla-result time{font-size:11px;color:var(--dsw-alias-label-secondary)}.sla-result:focus-visible,.sla-result summary:focus-visible{outline:2px solid var(--dsw-alias-label-primary);outline-offset:3px}
 `;
   const moving = run => run && ['running', 'preparing', 'pausing', 'stopping'].includes(run.status);
-  const approved = run => !run.reviewSupported || (run.reviewedBest?.trial === run.best?.trial && run.reviewedBest?.criteriaVersion === run.criteriaVersion && !run.pendingReview);
   const state = run => run.adopted ? 'adopted' : run.status;
   const value = x => x?.display ?? (Number.isFinite(x?.score) ? String(Number(x.score.toPrecision(6))) : '—');
   return {
@@ -57,6 +59,17 @@ function factory(require) {
           if (!text) return null;
           return h('details', { className: 'sla-details' }, h('summary', null, title ?? t(label)), code ? h('pre', { className: 'sla-raw' }, text) : h(Prose, { text }));
         }
+        function CheckOrigin({ run, check, index }) {
+          const view = checkPresentation(run, check, index);
+          return h('div', { className: 'sla-origin' },
+            view.purpose && h(Prose, { text: view.purpose }),
+            !view.named && h('p', { className: 'sla-muted' }, t('unnamedCheck')),
+            h('details', { className: 'sla-details' }, h('summary', null, t('checkOrigin')),
+              h('p', { className: 'sla-muted' }, t('originHint')),
+              h('p', null, view.origin ? `${view.origin.trial ? t('candidate') + ' #' + view.origin.trial : t('initialProject')} · ${t('criterionVersion')} ${view.origin.version}` : t('unknownOrigin')),
+              view.origin?.publishedVersion && h('p', { className: 'sla-muted' }, `${t('introduced')} ${view.origin.publishedVersion}`),
+              h(Prose, { text: view.original })));
+        }
         function Evaluation({ result, run }) {
           const view = evaluationView(result);
           return h('div', { className: 'sla-check-result' },
@@ -65,9 +78,29 @@ function factory(require) {
               (result?.display !== undefined || Number.isFinite(result?.score)) && h(React.Fragment, null, h('dt', null, t('resultValue')), h('dd', null, value(result), Number.isFinite(result?.score) && run.criteria?.unit ? ' ' + run.criteria.unit.split(/[，,；;]/)[0] : '')),
               view.total > 0 && h(React.Fragment, null, h('dt', null, t('checkResults')), h('dd', null, `${view.passed} / ${view.total} ${t('groups')} ${t('passed')}`))),
             view.total > 0 && h('ul', { className: 'sla-check-list' }, ...view.checks.map((check, i) => h('li', { key: check.id ?? i },
-              h('details', null, h('summary', null, h('span', null, `${t('checkGroup')} ${i + 1}`), h('span', { className: `sla-status sla-status-${check.passed === true ? 'passed' : check.passed === false ? 'failed' : 'unknown'}` }, t(check.passed === true ? 'passed' : check.passed === false ? 'failed' : 'unknown'))),
-                h(Prose, { text: check.summary }), h(Original, { label: 'purpose', text: run.checks?.find(c => c.id === check.id)?.summary }))))),
+              h('details', null, h('summary', null, h('span', null, checkPresentation(run, check, i).title ?? `${t('checkGroup')} ${i + 1}`), h('span', { className: `sla-status sla-status-${check.passed === true ? 'passed' : check.passed === false ? 'failed' : 'unknown'}` }, t(check.passed === true ? 'passed' : check.passed === false ? 'failed' : 'unknown'))),
+                h('p', { className: 'sla-muted' }, t('currentCheck')), h(Prose, { text: check.summary }), h(CheckOrigin, { run, check, index: i }))))),
             h(Original, { text: result?.summary }));
+        }
+        function Decision({ run, compact = false }) {
+          const view = decisionView(run);
+          if (!view.trial) return h('p', null, run.rebuild ? t('pending') : t('noResult'));
+          return h(React.Fragment, null,
+            h('p', { className: 'sla-result-score' }, t('baseline'), ' ', value(run.baseline), ' → ', value(view.evaluation), ' ', run.criteria?.unit?.split(/[，,；;]/)[0]),
+            h('p', { className: 'sla-muted' }, `${t(run.adopted && run.adoptionCheck ? 'adoptedValue' : 'selectedValue')} · ${t('candidate')} #${view.trial.number} · ${t('criterionVersion')} ${run.criteriaVersion ?? run.revision}`),
+            compact ? h('p', { className: 'sla-muted' }, run.pendingReview ? t('pendingReview') : run.adopted ? t('adoptedSummary') : view.ready ? t('ready') : t('unchanged')) : h('div', { className: 'sla-decision' },
+              h('h3', null, t('changed')),
+              view.brief.change && h('p', { className: 'sla-muted' }, t('authorReport')),
+              view.brief.change ? h(Prose, { text: view.brief.change }) : h('p', null, `${t('changeFiles')}：${(view.trial.changes ?? []).join('、') || '—'}`),
+              !view.brief.change && h('p', { className: 'sla-muted' }, t('legacyBrief')),
+              h(Original, { text: view.trial.report, label: 'workerRecord' }),
+              h('h3', null, t('whyChosen')),
+              h('p', null, view.checks.status === 'passed' ? `${t('chosen')} #${view.trial.number}。` : t(view.checks.status === 'failed' ? 'failedCheck' : 'unknownCheck')),
+              view.excluded.length > 0 && h('p', { className: 'sla-muted' }, `${t('excluded')}：${view.excluded.map(n => '#' + n).join('、')}`),
+              run.pendingReview && h('p', null, t('pendingReview')),
+              !view.approved && !run.adopted && h('p', null, t('reviewRequired')),
+              view.brief.unverified ? h(React.Fragment, null, h('h3', null, t('unverified')), h(Prose, { text: view.brief.unverified }), h('p', { className: 'sla-muted' }, t('verifiedScope'))) : h('details', { className: 'sla-details' }, h('summary', null, t('unverified')), h('p', null, t('noUnverified')), h('p', { className: 'sla-muted' }, t('verifiedScope')))),
+          );
         }
         function Changes({ run, sessionId }) {
           const [expanded, setExpanded] = React.useState(false);
@@ -111,16 +144,20 @@ function factory(require) {
             onClick: () => open(sessionId),
           }, t('short'), ' · ', run ? t(state(run)) : t('error'), moving(run) && run.attempts > 0 ? ` · ${run.attempts}/${run.limit}` : ''));
         }
-        function Result({ sessionId, turn, t }) {
-          const { run } = useRun(sessionId);
-          if (!run || moving(run) || !ownsRun(turn, run)) return null;
-          return h('section', { className: 'sla-result', 'aria-label': t('result') }, h('style', null, css),
-            h('div', { className: 'sla-top' }, h('strong', null, t('title'), ' · ', t(state(run))), h('button', { type: 'button', onClick: () => open(sessionId) }, t('details'))),
-            run.best?.trial > 0 && !run.rebuild ? h('p', { className: 'sla-result-score' }, t('baseline'), ' ', value(run.baseline), ' → ', value(run.best), ' ', run.criteria?.unit) : h('p', null, run.rebuild ? t('pending') : t('noResult')),
-            h('p', { className: 'sla-muted' }, run.adopted ? t('adoptedSummary') : t('unchanged')));
+        function Result({ sessionId, turn, t, useChat }) {
+          const { run, error, loadError } = useRun(sessionId);
+          const latestTurn = useChat(snapshot => latestRunTurn(snapshot.timeline, run?.createdAt));
+          if (!run || !ownsRun(turn, run, latestTurn)) return null;
+          return h('section', { className: 'sla-result', 'aria-label': t('live') }, h('style', null, css + evidenceCss),
+            h('div', { className: 'sla-top' }, h('strong', { role: 'status' }, t('live'), ' · ', t(state(run))), h('button', { type: 'button', onClick: () => open(sessionId) }, t('details'))),
+            error && h('p', { role: 'alert' }, loadError ? t('syncFailed') : `${t('error')}：${error}`),
+            moving(run) || run.status === 'blocked' ? h(Prose, { text: run.message }) : null,
+            h(Decision, { run, compact: true }),
+            run.updatedAt && h('time', { dateTime: run.updatedAt }, t('updated'), ' ', new Date(run.updatedAt).toLocaleString()));
         }
         function Panel({ sessionId, t, useTabInfo }) {
           const { run, error, busy, act } = useRun(sessionId);
+          const view = run && decisionView(run);
           const info = useTabInfo();
           async function action(name) {
             const result = await act(name);
@@ -131,28 +168,27 @@ function factory(require) {
             h('div', { className: 'sla-top sla-eyebrow' }, t('title'), run && h('span', { className: 'sla-tag' }, t(state(run)))),
             error && h('p', { role: 'alert', className: 'sla-error' }, t('error'), '：', error),
             !run ? h('p', null, run === undefined ? t('loading') : t('intro')) : h(React.Fragment, null,
-              h('h2', null, run.goal),
+              h('h2', null, view.trial ? `${t('result')} · ${t('candidate')} #${view.trial.number}` : t('title')),
+              h(Original, { text: run.goal, label: 'goal' }),
               !run.adopted && h('div', { 'aria-live': 'polite' }, h(Prose, { text: run.message })),
-              run.criteria && h(React.Fragment, null,
-                h('div', { className: 'sla-scores' },
-                  h('div', null, h('div', { className: 'sla-muted' }, t('baseline')), h('div', { className: 'sla-value' }, value(run.baseline))),
-                  h('div', null, h('div', { className: 'sla-muted' }, t('best')), h('div', { className: 'sla-value' }, value(run.best)))),
-                h('p', { className: 'sla-muted' }, run.criteria.unit)),
-              run.adopted && h('div', { className: 'sla-adopted' }, h('strong', null, t('adopted')), h('p', null, t('adoptedSummary')), run.adoptionCheck && h('details', { className: 'sla-details' }, h('summary', null, t('recheck')), h(Evaluation, { result: run.adoptionCheck, run }))),
+              run.adopted && h('p', null, t('adoptedSummary')),
+              h(Decision, { run }),
               !run.adopted && h(React.Fragment, null,
+                !moving(run) && h('p', { className: 'sla-next' }, view.ready ? t('ready') : view.trial && !view.approved ? t('reviewNow') : t('continueHint')),
                 h('div', { className: 'sla-actions' },
-                  moving(run) ? button('pause', 'pause', run.status === 'pausing' || run.status === 'stopping') : !run.adoptionPending && button('resume', 'resume', false, true),
+                  moving(run) ? button('pause', 'pause', run.status === 'pausing' || run.status === 'stopping') : !run.adoptionPending && button('resume', 'resume', false, !view.trial),
                   moving(run) && button('stop', 'stop', run.status === 'stopping'),
-                  !moving(run) && !run.rebuild && !run.adoptionPending && run.best?.trial > 0 && (approved(run) ? button('adopt', 'adopt', false, true) : button('review', 'review', false, true))),
+                  !moving(run) && !run.adoptionPending && view.trial && (view.ready ? button('adopt', 'adopt', false, true) : !view.approved && button('review', 'review', false, true))),
                 h('p', { className: 'sla-muted sla-hint' }, t('steerHint'))),
-              run.best?.trial > 0 && h(Changes, { key: run.id, run, sessionId }),
+              view.evaluation && h('details', { className: 'sla-section' }, h('summary', null, t(view.checks.status === 'passed' ? 'verified' : view.checks.status === 'failed' ? 'failedCheck' : 'unknownCheck'), view.checks.total > 0 ? ` · ${view.checks.passed}/${view.checks.total} ${t('groups')}` : ''), h(Evaluation, { result: view.evaluation, run })),
+              view.trial && h(Changes, { key: run.id, run, sessionId }),
               h('details', { className: 'sla-section' }, h('summary', null, t('method'), ` · ${t('revision')} ${run.criteriaVersion ?? run.revision}`),
                 h('div', { className: 'sla-method-title' }, h(Prose, { text: run.criteria?.title ?? t('pending') })),
                 run.criteria?.unit && h('div', { className: 'sla-measurement' }, h('strong', null, t('measurement')), h(Prose, { text: run.criteria.unit })),
                 h(Original, { text: criteriaMarkdown(run.criteria?.criterion), label: 'fullCriteria' }),
                 run.task && h('p', { className: 'sla-muted' }, `${run.task.name} · ${run.task.version}`),
                 h(Original, { text: run.selectionReason, label: 'methodChoice' }),
-                ...(run.checks ?? []).map((check, i) => h(Original, { key: check.id, title: `${t('checkGroup')} ${i + 1} · ${t('purpose')}`, text: check.summary })),
+                ...(run.checks ?? []).map((check, i) => h('details', { key: check.id, className: 'sla-details' }, h('summary', null, check.title ?? `${t('checkGroup')} ${i + 1}`), h(CheckOrigin, { run, check, index: i }))),
                 run.notes.length > 0 && h('div', { className: 'sla-subsection' }, h('h3', null, t('notes')), ...run.notes.map((note, i) => h(Prose, { key: i, text: note })))),
               run.directions?.length > 0 && h('div', { className: 'sla-section' }, h('div', { className: 'sla-top' }, h('h3', null, t('directions')), h('span', { className: 'sla-muted' }, `${t('epochs')} ${run.epochs?.length ?? 0}`)),
                 ...run.directions.filter(d => d.revision === run.revision).map(d => h('details', { key: d.id, className: 'sla-trial' }, h('summary', null, d.id, ' · ', value(d.best)), h(Prose, { text: d.hypothesis }), h('p', { className: 'sla-muted' }, d.best ? `#${d.best.trial} · ${t('localBest')}` : t('noLocal'))))),

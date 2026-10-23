@@ -4,7 +4,7 @@ import { parseResult } from '../src/evaluation.js';
 // Code-task method, not a required protocol for other SLA extensions.
 export function preservedBehaviorReview(kind) {
   return {
-    schema: { type: 'object', properties: { hasChecks: { type: 'boolean' }, summary: { type: 'string' } }, required: ['hasChecks', 'summary'], additionalProperties: false },
+    schema: { type: 'object', properties: { hasChecks: { type: 'boolean' }, title: { type: 'string', description: '行为名称，最多 60 字符' }, purpose: { type: 'string', description: '保护行为说明，最多 300 字符，不包含通过或失败结论' }, summary: { type: 'string' } }, required: ['hasChecks', 'title', 'purpose', 'summary'], additionalProperties: false },
     prompt(run, { phase, checkDirectory, originalDirectory, previousFailures }) {
       return `${intro(run)}
 角色：独立审查${phase === 'baseline' ? '初始评价依据' : '候选的行为回归'}。这是${kind}任务。只找目标修改范围之外、必须保持的公共行为。不要修复项目或实现优化。
@@ -14,6 +14,7 @@ export function preservedBehaviorReview(kind) {
 最后输出一行 SLA_RESULT {"passed":布尔,"summary":"实际断言结果"}；断言失败应输出 passed:false，设施/导入/语法错误应非零退出，不能伪装成语义反例。
 断言运行完成时 exit 0，包括 passed:false；不得在运行时写入 .sla/，日志输出到 stdout。
 面向用户的 summary 先用一两句简短中文说明保护什么行为、发现什么，再用 Markdown 列表给必要的输入与预期；命令和标识符用行内代码。不要把内部目录、完整运行日志或 SLA_RESULT JSON 拼进说明。评价输出的 summary 也使用中文，保留真实失败原因；完整诊断输出到 stdout。
+title 用 6–20 个中文字概括保护的行为，例如“自定义迭代器语义”，不要用“补充检查 1”。purpose 用一句话说明检查保护的行为，不包含当前通过/失败结论；本次审查发现放在 summary 中。没有新检查时 title、purpose 返回空字符串。
 原始项目和候选将由 Host 分别运行同一检查，原始项目未通过的检查不会发布。不要自行修改原始项目。完成一个最有价值的检查就提交，不追求穷举。没有具体新检查则 hasChecks:false，不创建文件，并说明检查了什么；这不表示已证明所有行为正确。
 已有评价：${run.criteria.criterion}
 已冻结补充检查：${JSON.stringify(run.checks.map(c => c.summary))}

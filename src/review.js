@@ -39,6 +39,10 @@ export async function reviewCandidate(engine, run, parent, signal, task, phase) 
     const added = Object.keys(proposedFiles).filter(name => !Object.hasOwn(priorFiles, name));
     if (added.some(name => !name.startsWith(checkDirectory + '/'))) throw new Error('审查在指定补充检查目录之外新增了文件');
     record.summary = response.summary;
+    // Optional presentation metadata keeps third-party review contracts compatible.
+    for (const [key, limit] of [['title', 60], ['purpose', 300]]) {
+      if (typeof response[key] === 'string' && response[key].trim() && response[key].length <= limit) record[key] = response[key].trim();
+    }
     if (!response.hasChecks) {
       if (attempts.length) throw new Error('此前审查检查未完成，不能用“没有新检查”替代失败检查');
       if (added.length) throw new Error('审查声称没有新检查，但实际新增了评价文件');
@@ -53,7 +57,7 @@ export async function reviewCandidate(engine, run, parent, signal, task, phase) 
     if (run.best.trial && !candidates.some(c => c.trial === run.best.trial)) candidates.push({ trial: run.best.trial, dir: run.best.dir, files: await inventory(run.best.dir) });
     run.pendingReview = { id, revision: run.revision, criteriaVersion: run.criteriaVersion + 1,
       evaluationDir: proposedDir, evaluationFiles: proposedFiles,
-      checks: [...run.checks, { id, directory: checkDirectory, summary: response.summary }], candidates, results: [] };
+      checks: [...run.checks, { id, directory: checkDirectory, summary: response.summary, ...(record.title ? { title: record.title } : {}), ...(record.purpose ? { purpose: record.purpose } : {}) }], candidates, results: [] };
     record.status = 'checking';
     await engine.save(run);
     await finishReview(engine, run, parent, signal, task);

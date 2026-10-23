@@ -89,13 +89,18 @@ test('grouped evidence retains old negative evidence and separates execution fai
 test('independent executable counterexample rejects former winner and retains old assessments', async () => {
   let reviews = 0;
   const f = await fixture({ review: true, maxTrials: 2, plans: [['fast']], results: [{ score: 80, behavior: 'correct' }, { score: 10, behavior: 'wrong' }],
-    invoke: async args => { if (args.role === 'reviewer' && ++reviews === 2) return addCheck(args); } });
+    invoke: async args => { if (args.role === 'reviewer' && ++reviews === 2) return { ...await addCheck(args), title: '返回值语义', purpose: '保留目标之外的既有返回行为。' }; } });
   await f.engine.action(parent, { action: 'start', text: 'improve score only' }); await settle(f.engine);
   const r = f.engine.get(parent.id);
   assert.equal(r.status, 'completed', r.message); assert.equal(r.best.score, 80); assert.equal(r.criteriaVersion, 2); assert.equal(r.revision, 1);
   assert.equal(r.trials[1].valid, true, 'historical evaluation preserved');
   assert.equal(r.assessments.find(a => a.trial === 2).evaluation.valid, false);
   assert.equal(r.reviews[1].status, 'confirmed-regression'); assert.equal(r.reviewedBest.trial, 1);
+  assert.equal(r.checks[0].title, '返回值语义'); assert.equal(r.reviews[1].title, r.checks[0].title);
+  assert.equal(r.checks[0].purpose, '保留目标之外的既有返回行为。');
+  const saved = JSON.parse(await readFile(path.join(r.root, 'report.json'), 'utf8'));
+  assert.equal(saved.checks[0].title, r.checks[0].title);
+  assert.equal(saved.reviews[1].targetTrial, 2); assert.equal(saved.reviews[1].publishedVersion, 2);
   const corrected = advisorEvidence(r).find(d => d.direction === 'fast');
   assert.equal(corrected.counts.invalid, 1); assert.equal(corrected.evidence.find(t => t.trial === 2).valid, false);
   assert.match(corrected.evidence.find(t => t.trial === 2).diagnostic, /behavior regression/);
@@ -113,6 +118,19 @@ test('candidate modified during adoption re-evaluation cannot be copied back', a
   } };
   await assert.rejects(f.engine.action(parent, { action: 'adopt' }), /复验后候选内容已改变/);
   assert.equal((await read(f.cwd)).score, 100);
+});
+
+test('malformed presentation metadata is omitted without changing executable check outcomes', async () => {
+  let reviews = 0;
+  const f = await fixture({ review: true, maxTrials: 1, plans: [['fast']], invoke: async args => {
+    if (args.role === 'reviewer' && ++reviews === 1) return { ...await addCheck(args), title: 'x'.repeat(61), purpose: { invalid: true } };
+  } });
+  await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
+  const r = f.engine.get(parent.id);
+  assert.equal(r.status, 'completed', r.message);
+  assert.equal(r.checks[0].title, undefined); assert.equal(r.checks[0].purpose, undefined);
+  assert.equal(r.best.supplementaryChecks[0].passed, true);
+  assert.equal(r.checks[0].summary, 'behavior is outside the requested score improvement');
 });
 
 test('evaluation upgrade resumes after interruption without publishing partial rankings', async () => {

@@ -60,12 +60,21 @@ export function createRunStore(read, mutate, pollMs = 2000) {
   return { forSession, dispose() { disposed = true; for (const entry of sessions.values()) entry.dispose(); sessions.clear(); } };
 }
 
-// Attach the live result to the conversation turn that started this exploration.
-export function ownsRun(turn, run) {
+// The latest completed native turn hosts the live projection; older messages stay intact.
+export function latestRunTurn(timeline, createdAt) {
+  const started = Date.parse(createdAt);
+  if (!Number.isFinite(started)) return undefined;
+  return timeline?.turnOrder.findLast(number => {
+    const turn = timeline.turns.get(number);
+    return turn?.status === 'closed' && typeof turn.end?.time === 'number' && turn.end.time >= started;
+  });
+}
+
+export function ownsRun(turn, run, latestTurn) {
   const started = Date.parse(run?.createdAt);
   return Number.isFinite(started) && turn?.status === 'closed'
-    && typeof turn.start?.time === 'number' && typeof turn.end?.time === 'number'
-    && turn.start.time <= started && started <= turn.end.time;
+    && typeof turn.end?.time === 'number' && turn.end.time >= started
+    && latestTurn !== undefined && turn.turn === latestTurn;
 }
 
 export function collapseAdoptedPanel(sidebar, sessionId, tabId) {

@@ -30,7 +30,7 @@ export interface TaskDefinition {
   review?: {
     schema: Record<string, unknown>;
     prompt(run: RunContext, context: { phase: 'baseline' | 'candidate'; checkDirectory: string; originalDirectory: string; previousFailures: string[] }): string;
-    evaluate(input: { cwd: string; signal: AbortSignal; criteria: Criteria; execute(command: string): Promise<CommandResult>; check: { id: string; directory: string; summary: string } }): Promise<{ passed: boolean; summary: string }>;
+    evaluate(input: { cwd: string; signal: AbortSignal; criteria: Criteria; execute(command: string): Promise<CommandResult>; check: { id: string; directory: string; summary: string; title?: string; purpose?: string } }): Promise<{ passed: boolean; summary: string }>;
   };
 }
 export interface SlaExtensionService { registerTask(task: TaskDefinition): () => void }

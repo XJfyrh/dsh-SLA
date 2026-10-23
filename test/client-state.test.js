@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRunStore, ownsRun, collapseAdoptedPanel } from '../src/client-state.js';
+import { createRunStore, latestRunTurn, ownsRun, collapseAdoptedPanel } from '../src/client-state.js';
 
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 const flush = () => new Promise(resolve => setImmediate(resolve));
@@ -78,14 +78,21 @@ test('failed action retains the current result and reports its reason', async ()
   stop(); store.dispose();
 });
 
-test('result belongs only to the closed turn that started the exploration', () => {
+test('live state moves to the latest completed turn and never appears before launch or twice', () => {
   const run = { createdAt: new Date(1500).toISOString() };
-  const turn = { status: 'closed', start: { time: 1000 }, end: { time: 2000 } };
-  assert.equal(ownsRun(turn, run), true);
-  assert.equal(ownsRun({ ...turn, start: { time: 2001 }, end: { time: 3000 } }, run), false);
-  assert.equal(ownsRun({ ...turn, status: 'open' }, run), false);
-  assert.equal(ownsRun({ status: 'closed' }, run), false);
-  assert.equal(ownsRun(turn, { createdAt: 'invalid' }), false);
+  const turns = [ { turn: 0, status: 'closed', end: { time: 1000 } }, { turn: 1, status: 'closed', end: { time: 2000 } }, { turn: 2, status: 'open' } ];
+  const timeline = { turnOrder: [0, 1, 2], turns: new Map(turns.map(t => [t.turn, t])) };
+  assert.equal(latestRunTurn(timeline, run.createdAt), 1);
+  assert.equal(ownsRun(turns[1], run, 1), true);
+  turns[2].status = 'closed'; turns[2].end = { time: 3000 };
+  const latest = latestRunTurn(timeline, run.createdAt);
+  assert.equal(latest, 2);
+  assert.deepEqual(turns.map(t => ownsRun(t, run, latest)), [false, false, true]);
+  for (const status of ['running', 'paused', 'blocked', 'completed']) assert.equal(ownsRun(turns[2], { ...run, status }, latest), true);
+  assert.equal(latestRunTurn(timeline, new Date(4000).toISOString()), undefined);
+  assert.equal(latestRunTurn(undefined, run.createdAt), undefined);
+  assert.equal(latestRunTurn(timeline, 'invalid'), undefined);
+  assert.equal(ownsRun(turns[1], run, undefined), false);
 });
 
 test('adoption only collapses its own visible sidebar, never another session or tab', () => {
