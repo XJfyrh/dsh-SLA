@@ -31,9 +31,11 @@ export function apply(ctx) {
 | `compare(candidate, reference, criteria)` | 同步返回 `better`、`equal`、`worse` 或 `incomparable` |
 | `complete(candidate, criteria)` | 可选同步完成判定；通过后提前结束本轮 |
 
-类型从 `dsh-sla/extension` 导入。评价结果需要 `valid: boolean`、`summary: string`；可选 `display` 供原生面板展示，其余 JSON 字段归扩展解释，完整载荷保存在实验的 `evaluation` 中，不覆盖实验编号等核心身份。`valid` 表示该候选满足采用所需的检查，不能用“测量已执行”代替。核心只保留 `valid` 且优于当前候选的改动；采用前再次评价并要求优于基线。核心不要求数值、单位、特定命令或 `SLA_RESULT` 协议，`parseResult` 只是可选辅助函数。
+类型从 `dsh-sla/extension` 导入。评价结果需要 `valid: boolean`、`summary: string`；可选 `display` 供原生面板展示，其余 JSON 字段归扩展解释，完整载荷保存在实验的 `evaluation` 中，不覆盖实验编号等核心身份。`valid` 表示该候选满足采用所需的检查，不能用“测量已执行”代替。全局最佳只接受有效改善；新方向可先保留落后全局的有效候选，再沿该方向继续。采用前再次评价并要求优于基线。核心不要求数值、单位、特定命令或 `SLA_RESULT` 协议，`parseResult` 只是可选辅助函数。
 
 调查只新增 `.sla/` 中的检查文件，核心预建目录；复用现有检查时可以为空。整个目录按内容哈希冻结，执行时复制到独立检查目录；运行后复核冻结文件，新缓存只留在本次检查目录。原项目只在用户采用且源文件未变时写回，即使原生评价不调用 shell，也会复核宿主只读权限。扩展是与 Host 同进程运行的受信任代码，注册接口不提供代码隔离；应使用传入的 `execute`，遵守取消信号和现有 DSH 权限。
+
+使用 `parseResult` 时，正常完成检查必须退出 0，即使 `valid:false` 或 `passed:false`；非零退出、超时和输出截断都表示评价未完成。评价运行不得改写 `.sla/` 或项目文件，日志写 stdout，临时缓存可用副本中的 `.dsh/cache/`。缺陷已复现属于正常评价结果，不是设施错误。
 
 ## 身份与生命周期
 
