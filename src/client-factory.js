@@ -28,6 +28,15 @@ function factory(require) {
 .sla-panel,.sla-result{font:inherit;color:var(--dsw-alias-label-primary);font-size:13px;line-height:1.65;box-sizing:border-box}
 .sla-panel *,.sla-result *{box-sizing:border-box}.sla-panel{height:100%;overflow:auto;padding:22px 22px 32px}.sla-panel h2{font-size:19px;line-height:1.5;margin:0 0 10px;font-weight:600}.sla-panel h3{font-size:13px;margin:0;font-weight:600}.sla-panel p{margin:8px 0;overflow-wrap:anywhere}.sla-eyebrow{font-size:12px;color:var(--dsw-alias-label-secondary);margin-bottom:12px}.sla-top,.sla-actions,.sla-scores{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.sla-top{justify-content:space-between}.sla-tag{font-size:11px;color:var(--dsw-alias-label-secondary);border:1px solid var(--dsw-alias-border-l1);padding:2px 8px;border-radius:20px;white-space:nowrap}.sla-muted{color:var(--dsw-alias-label-secondary);font-size:12px}.sla-scores{gap:32px;padding:18px 0 12px}.sla-value{font-size:27px;line-height:1.4;font-variant-numeric:tabular-nums}.sla-panel button,.sla-result button,.sla-header{font:inherit;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;background:transparent;color:inherit;padding:6px 11px;cursor:pointer}.sla-panel button:hover,.sla-result button:hover,.sla-header:hover{background:var(--dsw-alias-interactive-bg-hover)}.sla-panel button:disabled{opacity:.5;cursor:default}.sla-panel .sla-primary{background:var(--dsw-alias-interactive-bg-hover);font-weight:600}.sla-panel button:focus-visible,.sla-result button:focus-visible,.sla-header:focus-visible,.sla-panel summary:focus-visible{outline:2px solid var(--dsw-alias-label-primary);outline-offset:3px}.sla-header{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;font-size:12px;white-space:nowrap;max-width:210px;overflow:hidden;text-overflow:ellipsis;color:var(--dsw-alias-label-secondary)}.sla-section{border-top:1px solid var(--dsw-alias-border-l1);margin-top:22px;padding-top:17px}.sla-panel summary{cursor:pointer;overflow-wrap:anywhere}.sla-panel summary:hover{color:var(--dsw-alias-label-primary)}.sla-trial{padding:12px 0;border-bottom:1px solid var(--dsw-alias-border-l1)}.sla-trial:last-child{border-bottom:0}.sla-panel pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.6 monospace;background:var(--dsw-alias-interactive-bg-hover);padding:12px;border-radius:8px;max-height:360px;overflow:auto}.sla-path{overflow-wrap:anywhere;font-size:11px;user-select:all}.sla-error{border-left:3px solid currentColor;padding-left:10px;margin:12px 0}.sla-result{margin:14px 0 4px;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;padding:13px 15px}.sla-result p{margin:6px 0 0;overflow-wrap:anywhere}.sla-result button{padding:3px 8px;font-size:12px}.sla-result strong{font-weight:600}.sla-result-score{font-variant-numeric:tabular-nums}.sla-hint{padding-top:10px}.sla-panel .sla-adopted{padding:12px;background:var(--dsw-alias-interactive-bg-hover);border-radius:10px;margin-top:15px}@media(max-width:520px){.sla-panel{padding:18px 16px}.sla-value{font-size:24px}.sla-header{max-width:150px}}
 `;
+  Object.assign(dictionaries.zh, { settings: '探索设置', runAllowance: '整轮额度', maxTrials: '最多尝试次数', maxMinutes: '最长时间（分钟）',
+    callAllowance: '高级设置 · 单次工作与方向', maxStepsPerCall: '单次工作步数', maxMinutesPerCall: '单次时间（分钟）', directionsLimit: '每次规划方向数', localTrials: '每方向尝试次数',
+    saveSettings: '保存设置', settingsSaved: '已保存；点击继续探索时使用。', pauseToConfigure: '暂停后调整',
+    settingsHint: '调整额度会保留已用次数和时间，不会重新开始探索。', callHint: '每次调用另有 1 步用于提交结果；仍受整轮剩余时间限制。方向设置用于下一次规划。', nativeUsage: '模型与输出额度沿用 DSH 会话设置；Token 用量在 DSH 中查看。' });
+  Object.assign(dictionaries.en, { settings: 'Exploration settings', runAllowance: 'Run allowance', maxTrials: 'Maximum trials', maxMinutes: 'Time limit (minutes)',
+    callAllowance: 'Advanced · calls and directions', maxStepsPerCall: 'Work steps per call', maxMinutesPerCall: 'Minutes per call', directionsLimit: 'Directions per epoch', localTrials: 'Trials per direction',
+    saveSettings: 'Save settings', settingsSaved: 'Saved. Continue exploration to use them.', pauseToConfigure: 'Pause to edit',
+    settingsHint: 'Changing the allowance retains consumed trials and time; it does not restart exploration.', callHint: 'Each call has one extra submission step and stays within the remaining run time. Direction settings apply to the next plan.', nativeUsage: 'Model and output limits follow the DSH session. View token usage in DSH.' });
+  const settingsCss = `.sla-settings fieldset{border:0;padding:0;margin:12px 0;min-width:0}.sla-settings legend{font-size:13px;font-weight:600}.sla-settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:10px}.sla-settings label{font-size:12px;display:flex;flex-direction:column;gap:5px}.sla-settings input{font:inherit;color:inherit;background:transparent;border:1px solid var(--dsw-alias-border-l1);border-radius:7px;padding:7px 9px;width:100%;min-width:0}.sla-settings input:focus-visible{outline:2px solid var(--dsw-alias-label-primary);outline-offset:2px}.sla-settings fieldset:disabled{opacity:.6}.sla-settings summary{font-weight:500}@container(max-width:280px){.sla-settings-grid{grid-template-columns:1fr}}`;
   const evidenceCss = `
 .sla-panel{font-size:14px;line-height:1.7;container-type:inline-size}.sla-panel .sla-prose{min-width:0;overflow-wrap:anywhere}.sla-prose>div{font-size:inherit;line-height:inherit}.sla-prose h1,.sla-prose h2,.sla-prose h3{font-size:14px;line-height:1.6;margin:16px 0 7px;font-weight:600}.sla-prose p{margin:8px 0}.sla-prose ul,.sla-prose ol{padding-left:22px}.sla-prose li+li{margin-top:6px}.sla-prose table{display:block;max-width:100%;overflow-x:auto}.sla-prose pre{white-space:pre;overflow-wrap:normal;max-height:none;background:transparent;padding:0;border-radius:0;font:inherit}.sla-prose [data-code-block]{max-width:100%}.sla-section>summary{font-weight:600;padding-bottom:4px}.sla-details{margin:12px 0}.sla-details>summary{font-size:12px;color:var(--dsw-alias-label-secondary)}.sla-check-result{padding:10px 0}.sla-check-result>strong{font-size:14px}.sla-facts{margin:10px 0;display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13px}.sla-facts dt{color:var(--dsw-alias-label-secondary)}.sla-facts dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.sla-check-list{list-style:none;padding:0;margin:12px 0}.sla-check-list>li{border-top:1px solid var(--dsw-alias-border-l1);padding:8px 0}.sla-check-list details>summary{display:flex;gap:8px;justify-content:space-between;align-items:baseline;font-size:13px}.sla-check-list details>summary::before{content:'›';color:var(--dsw-alias-label-secondary)}.sla-check-list details[open]>summary::before{transform:rotate(90deg)}.sla-check-list details>summary>span:first-child{flex:1}.sla-status{font-size:12px;font-weight:500;white-space:nowrap}.sla-status-passed{color:#238353}.sla-status-failed{color:#c44444}.sla-status-unknown{color:var(--dsw-alias-label-secondary)}.sla-file{margin:12px 0;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;min-width:0;overflow:hidden}.sla-file>summary{padding:10px 12px;overflow-wrap:anywhere;font-weight:500}.sla-file-body{min-width:0}.sla-file-body pre{white-space:pre;overflow-wrap:normal;max-height:none;background:transparent;padding:0;border-radius:0;font:inherit}.sla-file-body>div{max-width:100%}.sla-file-body>p{padding:0 12px}.sla-file-kind{font-size:11px;color:var(--dsw-alias-label-secondary);margin-left:10px}.sla-method-title{font-weight:500}.sla-subsection{margin-top:16px}.sla-raw{white-space:pre-wrap!important;max-height:360px!important;overflow:auto!important;font:12px/1.6 monospace!important;padding:12px!important;background:var(--dsw-alias-interactive-bg-hover)!important}.sla-panel .sla-adopted{padding:15px}.sla-panel .sla-adopted>p{font-size:13px}.sla-panel .sla-adopted .sla-check-result{padding-bottom:0}.sla-measurement{font-size:13px;color:var(--dsw-alias-label-secondary);margin-top:10px}.sla-measurement strong{display:block;color:var(--dsw-alias-label-primary);font-weight:500}.sla-file-count{font-size:12px;font-weight:400;color:var(--dsw-alias-label-secondary)}
 .sla-decision{padding:14px 0}.sla-decision h3{margin-top:14px}.sla-decision h3:first-child{margin-top:0}.sla-origin{border-left:2px solid var(--dsw-alias-border-l1);padding:2px 0 2px 12px;margin:12px 0}.sla-next{padding:12px;border-radius:8px;background:var(--dsw-alias-interactive-bg-hover)}.sla-check-list .sla-origin summary{display:list-item}.sla-check-list .sla-origin summary::before{content:none}.sla-result time{font-size:11px;color:var(--dsw-alias-label-secondary)}.sla-result:focus-visible,.sla-result summary:focus-visible{outline:2px solid var(--dsw-alias-label-primary);outline-offset:3px}
@@ -43,7 +52,7 @@ function factory(require) {
       ctx.inject(['remote.sla'], ctx => {
         const runs = createRunStore(
           async id => decode(await ctx.remote.sla.get(id)),
-          async (id, action) => decode(await ctx.remote.sla.action(id, JSON.stringify({ action }))),
+          async (id, action) => decode(await ctx.remote.sla.action(id, JSON.stringify(typeof action === 'string' ? { action } : action))),
         );
         ctx.effect(() => () => runs.dispose());
         const tabKind = 'dsh-sla';
@@ -155,6 +164,32 @@ function factory(require) {
             h(Decision, { run, compact: true }),
             run.updatedAt && h('time', { dateTime: run.updatedAt }, t('updated'), ' ', new Date(run.updatedAt).toLocaleString()));
         }
+        function Settings({ run, busy, act }) {
+          const current = { maxStepsPerCall: 24, maxMinutesPerCall: 5, ...run.settings };
+          const signature = JSON.stringify(current);
+          const [draft, setDraft] = React.useState(current);
+          const [saved, setSaved] = React.useState(false);
+          React.useEffect(() => { setDraft(JSON.parse(signature)); }, [run.id, signature]);
+          const field = (name, min, max, label = name) => h('label', { key: name }, t(label), h('input', { type: 'number', name, min, max, step: 1, required: true, value: draft[name] ?? '', onChange: event => { setSaved(false); setDraft(previous => ({ ...previous, [name]: event.target.value })); } }));
+          async function save(event) {
+            event.preventDefault();
+            const changed = Object.fromEntries(Object.entries(draft).filter(([key, value]) => Number(value) !== current[key]).map(([key, value]) => [key, Number(value)]));
+            if (!Object.keys(changed).length) return;
+            const result = await act({ action: 'configure', settings: changed });
+            if (result) setSaved(JSON.stringify(result.settings));
+          }
+          return h('details', { className: 'sla-section sla-settings' }, h('summary', null, t('settings')),
+            h('p', { className: 'sla-muted' }, t('settingsHint')),
+            moving(run) && h('button', { type: 'button', disabled: busy || ['pausing', 'stopping'].includes(run.status), onClick: () => act('pause') }, t('pauseToConfigure')),
+            h('form', { onSubmit: save }, h('fieldset', { disabled: busy || moving(run) },
+              h('legend', null, t('runAllowance')), h('div', { className: 'sla-settings-grid' }, field('maxTrials', 1, 100), field('maxMinutes', 1, 240)),
+              h('details', { className: 'sla-details' }, h('summary', null, t('callAllowance')),
+                h('div', { className: 'sla-settings-grid' }, field('maxStepsPerCall', 4, 200), field('maxMinutesPerCall', 1, 60), field('directions', 1, 4, 'directionsLimit'), field('localTrials', 1, 5)),
+                h('p', { className: 'sla-muted' }, t('callHint'))),
+              h('button', { type: 'submit', disabled: Object.entries(draft).every(([key, value]) => Number(value) === current[key]) }, t('saveSettings')))),
+            !moving(run) && saved === JSON.stringify(run.settings) && h('p', { role: 'status' }, t('settingsSaved')),
+            h('p', { className: 'sla-muted' }, t('nativeUsage')));
+        }
         function Panel({ sessionId, t, useTabInfo }) {
           const { run, error, busy, act } = useRun(sessionId);
           const view = run && decisionView(run);
@@ -164,7 +199,7 @@ function factory(require) {
             if (name === 'adopt' && result?.adopted) collapseAdoptedPanel(ctx.sidebarRight, sessionId, info.tab.id);
           }
           const button = (label, name, disabled = false, primary = false) => h('button', { type: 'button', disabled: busy || disabled, className: primary ? 'sla-primary' : undefined, onClick: () => action(name) }, t(label));
-          return h('section', { className: 'sla-panel', 'aria-label': t('title') }, h('style', null, css + evidenceCss),
+          return h('section', { className: 'sla-panel', 'aria-label': t('title') }, h('style', null, css + evidenceCss + settingsCss),
             h('div', { className: 'sla-top sla-eyebrow' }, t('title'), run && h('span', { className: 'sla-tag' }, t(state(run)))),
             error && h('p', { role: 'alert', className: 'sla-error' }, t('error'), '：', error),
             !run ? h('p', null, run === undefined ? t('loading') : t('intro')) : h(React.Fragment, null,
@@ -180,6 +215,7 @@ function factory(require) {
                   moving(run) && button('stop', 'stop', run.status === 'stopping'),
                   !moving(run) && !run.adoptionPending && view.trial && (view.ready ? button('adopt', 'adopt', false, true) : !view.approved && button('review', 'review', false, true))),
                 h('p', { className: 'sla-muted sla-hint' }, t('steerHint'))),
+              !run.adopted && run.settings && h(Settings, { key: run.id, run, busy, act }),
               view.evaluation && h('details', { className: 'sla-section' }, h('summary', null, t(view.checks.status === 'passed' ? 'verified' : view.checks.status === 'failed' ? 'failedCheck' : 'unknownCheck'), view.checks.total > 0 ? ` · ${view.checks.passed}/${view.checks.total} ${t('groups')}` : ''), h(Evaluation, { result: view.evaluation, run })),
               view.trial && h(Changes, { key: run.id, run, sessionId }),
               h('details', { className: 'sla-section' }, h('summary', null, t('method'), ` · ${t('revision')} ${run.criteriaVersion ?? run.revision}`),
