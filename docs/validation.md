@@ -4,7 +4,7 @@
 
 本节对应 `XJfyrh/sla-long-horizon`，尚未合入日常使用的 `sla-dev`。长程任务对照仍在进行；下列结果分别说明协议与界面行为，不代表搜索收益。
 
-- 核心回归 77 项通过、0 失败、0 跳过；文件检查失败保持未知、执行报告在评价失败后保留、实际起点与全局最佳分开。输出：`artifacts/long-horizon/tests-evidence-budgets-final.txt`。
+- 当前集成回归 80 项通过、0 失败、0 跳过，覆盖核心、界面状态和验收负例；文件检查失败保持未知、执行报告在评价失败后保留、实际起点与全局最佳分开。对应代码 `09844fc`，输出：`artifacts/long-horizon/tests-integration-09844fc.txt`。
 - 真实 DSH Host 使用固定响应完成 219 次请求，无外部模型调用。验证配置传递、4 个工作步后只允许提交、默认 24 步后的提交、无效提交和取消、PTC 父会话及工具清理。子会话全部继承原生 `maxTokens=32768`，插件不再写死 16000。输出：`artifacts/long-horizon/host-call-budget-native-inheritance.json`。
 - 设置面板在独立 DSH_HOME / `sla-host-test` / Web 3082 使用明确标注的固定运行数据验证。运行状态禁止编辑，暂停后从 24 步／5 分钟改为 48 步／10 分钟；Host 保存后和浏览器刷新后均保持该值。已用 2 次／2 分钟、本轮上限 8 次／20 分钟不变。输入 3 步被浏览器约束拒绝，Host 记录未改变。截图及固定数据身份：`artifacts/long-horizon/settings-ui/`。该 UI 数据没有真实 Worker，活跃调用取消由前述 Host 用例验证。
 - 检查点和导出身份的 2 项负例通过：源候选或冻结评价改变时禁止续跑；调用链属于其他根会话时禁止导出。实际公共任务的保留候选、基线和评价哈希也通过核验。原生会话导出与 Token 汇总仍由 DSH 实现。
