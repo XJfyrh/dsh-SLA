@@ -36,6 +36,7 @@ class ScriptedAdapter extends LlmAdapter {
   requests = 0;
   async resolveModel(provider, model) { return { provider, id: model, name: model }; }
   async *stream(options) {
+    assert.equal(options.maxTokens, 32768, 'child did not inherit the native model output setting');
     const names = (options.tools ?? []).map(tool => tool.name);
     const queued = this.queue.shift();
     assert.ok(queued, 'unexpected model request');
@@ -68,7 +69,7 @@ async function verify(ctx) {
     if (children.some(child => child === exec.agent)) results.push({ name: exec.name, isError: !!result.isError, content: result.content });
   });
   const parent = await ctx.agents.create({
-    sessionId: randomUUID(), meta: { cwd, origin: 'subagent' }, agentOptions: { provider: 'sla-test', model: 'scripted' },
+    sessionId: randomUUID(), meta: { cwd, origin: 'subagent' }, agentOptions: { provider: 'sla-test', model: 'scripted', maxTokens: 32768 },
     setup: async (agentCtx, agent) => {
       await ctx.agentPresets.mount(agentCtx, 'sla');
       agent.session.append('sandbox/mode', { mode: 'workspace-write', source: 'delegation' });
@@ -174,6 +175,10 @@ async function verify(ctx) {
     } finally { restorePresentation(); before = nativeParentTools; }
     adapter.queue.push(tool('structured_output', { ok: true }));
     assert.deepEqual(await invoke('scout'), { ok: true });
+    adapter.queue.push(...Array.from({ length: 4 }, () => tool('read', { file_path: 'probe-1.txt' })));
+    adapter.queue.push({ finalTools: ['structured_output'], response: tool('structured_output', { ok: true }) });
+    assert.deepEqual(await ctx.sla.invoke({ parent: parent.agent, role: 'scout', cwd, prompt: 'Use the configured four work steps and submission step.', schema,
+      settings: { maxStepsPerCall: 4, maxMinutesPerCall: 1 }, signal: AbortSignal.timeout(60000), onStarted }), { ok: true });
     assert.equal(adapter.queue.length, 0);
     assert.equal(ctx.sla.calls.size, 0);
     assert.equal(ctx.sla.researchOwners.size, 0);

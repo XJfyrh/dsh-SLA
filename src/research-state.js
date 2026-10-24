@@ -1,6 +1,6 @@
-export const defaults = Object.freeze({ maxTrials: 8, maxMinutes: 20, directions: 2, localTrials: 2 });
+export const defaults = Object.freeze({ maxTrials: 8, maxMinutes: 20, directions: 2, localTrials: 2, maxStepsPerCall: 24, maxMinutesPerCall: 5 });
 export function settings(value = {}, base = defaults) {
-  const limits = { maxTrials: [1, 100], maxMinutes: [1, 240], directions: [1, 4], localTrials: [1, 5] };
+  const limits = { maxTrials: [1, 100], maxMinutes: [1, 240], directions: [1, 4], localTrials: [1, 5], maxStepsPerCall: [4, 200], maxMinutesPerCall: [1, 60] };
   for (const key of Object.keys(value)) if (!limits[key]) throw new Error('未知探索设置：' + key);
   const result = { ...base, ...value };
   for (const [key, [min, max]] of Object.entries(limits)) if (!Number.isInteger(result[key]) || result[key] < min || result[key] > max) throw new Error(`${key} 必须是 ${min}–${max} 的整数`);
@@ -9,6 +9,8 @@ export function settings(value = {}, base = defaults) {
 
 export function initializeResearch(run, config = defaults) {
   run.settings ??= { ...config };
+  run.settings.maxStepsPerCall ??= 24;
+  run.settings.maxMinutesPerCall ??= 5;
   run.tranche ??= { attempt: 0, elapsedMs: 0 };
   run.directions ??= [];
   run.epochs ??= [];

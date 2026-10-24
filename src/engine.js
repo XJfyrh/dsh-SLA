@@ -179,7 +179,7 @@ export class ExplorationEngine {
     run.invocations.push(invocation);
     await this.save(run);
     try {
-      const result = await this.adapter.invoke({ parent, role, cwd, prompt, schema, signal, onStarted: async childId => { invocation.childId = childId; await this.save(run); } });
+      const result = await this.adapter.invoke({ parent, role, cwd, prompt, schema, settings: run.settings, signal, onStarted: async childId => { invocation.childId = childId; await this.save(run); } });
       signal.throwIfAborted();
       return result;
     } finally {

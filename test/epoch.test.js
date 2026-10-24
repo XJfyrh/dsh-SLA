@@ -213,6 +213,23 @@ test('an inapplicable review is corrected once using its actual failure feedback
   const r = f.engine.get(parent.id); assert.equal(r.status, 'completed', r.message); assert.equal(r.criteriaVersion, 2); assert.equal(r.reviews[0].status, 'inconclusive');
 });
 
+test('per-call settings reach every role and preserve unedited run allowance', async () => {
+  const seen = [];
+  const f = await fixture({ maxTrials: 1, invoke: async args => { seen.push(structuredClone(args.settings)); } });
+  await f.engine.action(parent, { action: 'start', text: 'improve', settings: { maxStepsPerCall: 48, maxMinutesPerCall: 10 } }); await settle(f.engine);
+  assert.ok(seen.length >= 4);
+  assert.ok(seen.every(s => s.maxStepsPerCall === 48 && s.maxMinutesPerCall === 10));
+  const before = f.engine.get(parent.id);
+  await f.engine.action(parent, { action: 'configure', settings: { maxMinutesPerCall: 6 } });
+  const after = f.engine.get(parent.id);
+  assert.equal(after.settings.maxStepsPerCall, 48);
+  assert.equal(after.settings.maxMinutesPerCall, 6);
+  assert.equal(after.limit, before.limit);
+  assert.equal(after.timeLimitMs, before.timeLimitMs);
+  assert.throws(() => settings({ maxStepsPerCall: 3 }), /maxStepsPerCall/);
+  assert.throws(() => settings({ maxMinutesPerCall: 61 }), /maxMinutesPerCall/);
+});
+
 test('review approval binds exact candidate bytes, and settings retain already consumed allowance', async () => {
   const f = await fixture({ review: true, maxTrials: 2, plans: [['fast']] });
   await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
