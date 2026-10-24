@@ -2,13 +2,15 @@ import { advisorEvidence, feedback } from './research-state.js';
 const strings = { type: 'array', items: { type: 'string' } };
 const schema = properties => ({ type: 'object', properties, required: Object.keys(properties), additionalProperties: false });
 export const scoutSchema = schema({ title: { type: 'string' }, criterion: { type: 'string' }, unit: { type: 'string' }, ready: { type: 'boolean' }, reason: { type: 'string' } });
-export const advisorSchema = schema({ assignments: { type: 'array', items: schema({ direction: { type: 'string' }, hypothesis: { type: 'string' }, instructions: { type: 'string' }, evidenceTrials: { type: 'array', items: { type: 'integer' } } }) }, stop: { type: 'boolean' }, reason: { type: 'string' } });
+export const advisorSchema = schema({ assignments: { type: 'array', items: schema({ direction: { type: 'string' }, hypothesis: { type: 'string', description: '用一句话提出由当前代码或实测结果支持、仍需实验验证的假设。' }, instructions: { type: 'string', description: '用 2–4 句话说明要改变的机制、必须保持的行为，以及局部尝试需要验证什么；实现细节由 Worker 决定。' }, evidenceTrials: { type: 'array', items: { type: 'integer' } } }) }, stop: { type: 'boolean' }, reason: { type: 'string', description: '简短说明本轮选择或停止的实际依据。' } });
 export const workerSchema = schema({ summary: { type: 'string' }, changes: strings });
 export const intro = run => `你是 SLA 持续探索的一次全新调用。目标：${run.goal}\n用户补充：${run.notes.join('\n') || '无'}\n使用目录中与当前任务相关的 DSH 技能。只在当前工作目录内修改文件，不访问其他会话、源项目、兄弟候选、凭据或网络；允许读取所选技能及其引用资源。不要提交 Git，不调用其他 agent。用中文返回结论。在 12 步内完成并提交结构化结果；优先用相对路径，批量读取。`;
 export function advisorPrompt(run, task) {
   return `${intro(run)}
 角色：规划下一个 Epoch。当前目录是全局最佳，只允许读取，不修改文件，不自行实现候选。
+本次交付是下一轮可执行的实验任务。根据可见代码与已测结果选出值得检验的假设后，就提交结构化结果；将实现、参数选择和收益验证交给 Worker。尚不确定的实现细节写成实验要验证的问题，不以推导出完整方案或精确最优收益为提交前提，不提前展开后续所有轮次。
 最多分配 ${run.settings.directions} 个不同方向，每个方向连续尝试最多 ${run.settings.localTrials} 次，同一个任务贯穿这些局部尝试。direction 使用稳定的英文短 id；继续同一方向沿用原 id，换方法使用新 id。未分配的方向暂停但保留候选。新方向可以暂时落后全局最佳，不因首次有效结果较差就放弃。
+每个方向提出一个连贯的机制变化，并说明局部尝试如何验证它；允许需要较大改动的方向，不要求先证明完整实现可行。任务要让 Worker 知道改变什么、保持什么、观察什么结果，避免只给笼统的“继续优化”。
 任务方法：${task.instructions ?? task.description}
 固定评价依据：${run.criteria.criterion}。
 已冻结补充检查：${JSON.stringify(run.checks)}
