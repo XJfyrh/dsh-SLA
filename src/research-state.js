@@ -53,17 +53,26 @@ function currentTrial(trial, run) {
 export function feedback(trial, run) {
   if (!trial) return null;
   trial = currentTrial(trial, run);
-  return { trial: trial.number, epoch: trial.epoch, criteriaVersion: trial.criteriaVersion,
+  return { trial: trial.number, parentTrial: trial.parentTrial, epoch: trial.epoch, criteriaVersion: trial.criteriaVersion,
     status: trial.status, historicalStatus: trial.historicalStatus, hypothesis: short(trial.hypothesis), valid: trial.valid,
     result: short(trial.evaluation?.display ?? trial.summary), diagnostic: short(trial.summary),
+    failurePhase: trial.failurePhase, workerReport: trial.report === undefined ? undefined : short(trial.report, 1200),
+    changedFiles: trial.changes?.slice(0, 20), changedFileCount: trial.changes?.length,
+    changeInspectionError: trial.changeInspectionError === undefined ? undefined : short(trial.changeInspectionError),
     evidence: trial.evidence ?? null };
+}
+
+function candidateEvidence(candidate) {
+  if (!candidate) return null;
+  const result = candidate.evaluation ?? candidate;
+  return { trial: candidate.trial, valid: result.valid, result: short(result.display ?? result.summary), criteriaVersion: candidate.criteriaVersion };
 }
 
 // Counts include the complete current-goal record; detail is selected by outcome,
 // not by one chronological tail that would erase an inactive direction.
 export function advisorEvidence(run) {
   const trials = run.trials.filter(t => t.revision === run.revision).map(t => currentTrial(t, run));
-  const groups = new Map(run.directions.filter(d => d.revision === run.revision).map(d => [d.id, { direction: d.id, hypothesis: short(d.hypothesis), localBest: d.best ? { trial: d.best.trial, valid: d.best.evaluation.valid, result: short(d.best.evaluation.display ?? d.best.evaluation.summary), criteriaVersion: d.best.criteriaVersion } : null, trials: [] }]));
+  const groups = new Map(run.directions.filter(d => d.revision === run.revision).map(d => [d.id, { direction: d.id, hypothesis: short(d.hypothesis), localBest: candidateEvidence(d.best), startCandidate: candidateEvidence(d.best ?? d.seed), trials: [] }]));
   for (const trial of trials) {
     const id = trial.direction ?? 'legacy';
     if (!groups.has(id)) groups.set(id, { direction: id, trials: [] });

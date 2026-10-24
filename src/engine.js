@@ -341,11 +341,16 @@ export class ExplorationEngine {
     // Reserve identity and allowance before any side effect, including copying.
     const trial = { number, revision: run.revision, criteriaVersion: run.criteriaVersion, epoch: epoch.number, direction: direction.id, parentTrial: seed.trial, hypothesis: assignment.hypothesis, status: 'running', dir };
     run.trials.push(trial); run.stage = 'experiment'; run.message = `第 ${epoch.number} 轮 · ${direction.id} · 第 ${number} 次尝试`; await this.save(run);
+    let before, phase = 'snapshot';
     try {
-      const before = await snapshot(seed.dir, dir);
+      before = await snapshot(seed.dir, dir);
+      phase = 'worker';
       const report = await this.invoke(run, parent, 'worker', dir, workerPrompt(run, assignment, task, direction), workerSchema, signal);
+      trial.report = report.summary;
+      phase = 'evaluation';
       run.stage = 'evaluate'; run.message = '正在用固定依据检查候选 ' + number; await this.save(run);
       const result = await this.evaluate(run, dir, parent, signal);
+      phase = 'retention';
       const files = await inventory(dir), changed = changedFiles(before, files);
       Object.assign(trial, { evaluation: result, valid: result.valid, ...(result.display !== undefined ? { display: result.display } : {}), ...(result.score !== undefined ? { score: result.score } : {}), evidence: result.evidence, summary: result.summary, changes: changed, report: report.summary, files });
       if (!result.valid) trial.status = 'invalid';
@@ -362,7 +367,13 @@ export class ExplorationEngine {
         }
       }
     } catch (e) {
-      trial.status = 'inconclusive'; trial.summary = String(e.message ?? e);
+      trial.status = 'inconclusive'; trial.summary = String(e.message ?? e); trial.failurePhase = phase;
+      // A changed file is evidence of work, not an accepted or complete candidate.
+      // Capture it even when invocation/evaluation failed; keep the original error.
+      if (before) {
+        try { trial.changes = changedFiles(before, await inventory(dir)); }
+        catch (error) { trial.changeInspectionError = String(error.message ?? error); }
+      }
       if (signal.aborted) throw e;
     }
   }

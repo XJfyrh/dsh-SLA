@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, symlink } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
@@ -84,6 +84,82 @@ test('grouped evidence retains old negative evidence and separates execution fai
   const evidence = advisorEvidence(run);
   assert.equal(evidence[0].evidence[0].trial, 1); assert.equal(evidence[0].counts['no-improvement'], 1);
   assert.equal(evidence[1].counts.inconclusive, 13); assert.equal(evidence[1].counts['no-improvement'], undefined);
+});
+
+test('failed workers expose observed work without promoting unevaluated changes', async () => {
+  let workers = 0;
+  const f = await fixture({ maxTrials: 3, localTrials: 1, plans: [['fast'], ['fast'], ['fast']], invoke: async args => {
+    if (args.role !== 'worker') return;
+    if (++workers === 1) throw new Error('max-tokens before writing');
+    if (workers === 2) { await write(args.cwd, { score: 1, behavior: 'unchecked' }); throw new Error('max-tokens after writing'); }
+  } });
+  await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
+  const run = f.engine.get(parent.id);
+  assert.deepEqual(run.trials.map(t => t.parentTrial), [0, 0, 0], 'failed output must not seed another trial');
+  assert.equal(run.best.trial, 3);
+  assert.deepEqual(run.trials[0].changes, []);
+  assert.deepEqual(run.trials[1].changes, ['value.json']);
+  assert.equal(run.trials[1].valid, undefined);
+  const evidence = advisorEvidence(run)[0];
+  assert.equal(evidence.startCandidate.trial, 3);
+  assert.equal(evidence.evidence[0].failurePhase, 'worker');
+  assert.equal(evidence.evidence[0].changedFileCount, 0);
+  assert.equal(evidence.evidence[1].changedFileCount, 1);
+  assert.equal(evidence.evidence[1].parentTrial, 0);
+  const nextPlanning = f.calls.filter(c => c.role === 'advisor')[2].prompt;
+  assert.match(nextPlanning, /max-tokens after writing/);
+  assert.match(nextPlanning, /"changedFiles":\["value.json"\]/);
+  assert.match(nextPlanning, /"startCandidate":\{"trial":0/);
+});
+
+test('evaluation failure keeps worker report separate from an unmeasured result', async () => {
+  const f = await fixture({ maxTrials: 1, plans: [['fast']], results: [{ score: 80, behavior: 'correct' }], task: {
+    async evaluate({ cwd }) { const v = await read(cwd); if (v.score !== 100) throw new Error('evaluator process unavailable'); return { valid: true, score: 100, summary: 'baseline' }; },
+  } });
+  await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
+  const run = f.engine.get(parent.id), evidence = advisorEvidence(run)[0];
+  assert.equal(run.best.trial, 0);
+  assert.equal(run.directions[0].best, null);
+  assert.equal(evidence.startCandidate.trial, 0);
+  assert.equal(evidence.evidence[0].status, 'inconclusive');
+  assert.equal(evidence.evidence[0].failurePhase, 'evaluation');
+  assert.equal(evidence.evidence[0].workerReport, 'changed candidate');
+  assert.equal(evidence.evidence[0].valid, undefined);
+  assert.deepEqual(evidence.evidence[0].changedFiles, ['value.json']);
+  assert.match(evidence.evidence[0].diagnostic, /evaluator process unavailable/);
+});
+
+test('an unsuccessful direction keeps its real seed after another direction improves global best', async () => {
+  let workers = 0;
+  const f = await fixture({ maxTrials: 5, invoke: async args => {
+    if (args.role === 'worker' && [3, 4].includes(++workers)) throw new Error('no submitted implementation');
+  } });
+  await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
+  const run = f.engine.get(parent.id);
+  const alternative = advisorEvidence(run).find(d => d.direction === 'alternative');
+  assert.equal(run.best.trial, 1);
+  assert.equal(alternative.localBest, null);
+  assert.equal(alternative.startCandidate.trial, 0);
+  assert.deepEqual(run.trials.slice(2, 4).map(t => t.parentTrial), [0, 0]);
+  const nextPlan = f.calls.filter(c => c.role === 'advisor')[1].prompt;
+  assert.match(nextPlan, /全局最佳 #1/);
+  assert.match(nextPlan, /"localBest":null,"startCandidate":\{"trial":0/);
+});
+
+test('failed change inspection stays unknown and keeps the original worker error', async () => {
+  const f = await fixture({ maxTrials: 1, plans: [['fast']], invoke: async args => {
+    if (args.role !== 'worker') return;
+    await symlink(args.cwd, path.join(args.cwd, 'loop'), process.platform === 'win32' ? 'junction' : 'dir');
+    throw new Error('worker output incomplete');
+  } });
+  await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
+  const run = f.engine.get(parent.id), evidence = advisorEvidence(run)[0].evidence[0];
+  assert.equal(run.best.trial, 0);
+  assert.equal(evidence.failurePhase, 'worker');
+  assert.equal(evidence.changedFiles, undefined);
+  assert.equal(evidence.changedFileCount, undefined);
+  assert.match(evidence.changeInspectionError, /符号链接/);
+  assert.equal(evidence.diagnostic, 'worker output incomplete');
 });
 
 test('independent executable counterexample rejects former winner and retains old assessments', async () => {
