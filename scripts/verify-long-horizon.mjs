@@ -35,22 +35,20 @@ export async function verifyInvocationChain(query, sessionId, invocations) {
   return logs;
 }
 
-async function exportNative(ctx, sessionId, output, invocations) {
-  const logs = await verifyInvocationChain(ctx.sessionQuery, sessionId, invocations);
-  const packageRoot = path.join(process.env.LOCALAPPDATA, 'npm/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai');
-  const requireDsh = createRequire(path.resolve(packageRoot, '../../package.json'));
-  const native = await import(pathToFileURL(requireDsh.resolve('@deepseek-ai/dsh-session-log-export')));
-  const { deriveTurnTokenUsage } = await import(pathToFileURL(requireDsh.resolve('@deepseek-ai/dsh-token-meter/client')));
-  const deps = native.sessionLogExportDeps(ctx);
-  const signal = AbortSignal.timeout(120000);
-  await native.flushLiveSessionLog(deps, sessionId, signal);
-  const root = await native.readSessionLogText(deps.sessionPersistence, sessionId, signal);
-  if (!root) throw new Error('Native root session log missing');
-  await pipeline(Readable.fromWeb(native.streamSessionLogZip(deps, root, sessionId, true, 6, signal)), createWriteStream(path.join(output, 'dsh-session.zip')));
-  const usage = [];
-  const observations = [];
+export async function summarizeNativeArchive(files, sessionId, invocations, deriveTurnTokenUsage) {
+  const archiveLogs = new Map();
+  for (const [entry, bytes] of Object.entries(files)) {
+    if (!/^(?:subagents\/[^/]+\/)?session(?:\.v\d+)?\.jsonl$/.test(entry)) continue;
+    const [session, ...events] = new TextDecoder('utf-8', { fatal: true }).decode(bytes).trimEnd().split('\n').map(line => JSON.parse(line));
+    if (session?.type !== 'session' || !session.id || archiveLogs.has(session.id)) throw new Error('Invalid or duplicate native archive session: ' + entry);
+    archiveLogs.set(session.id, { session, events, entry, sha256: createHash('sha256').update(bytes).digest('hex') });
+  }
+  const root = archiveLogs.get(sessionId);
+  if (!root || root.entry.startsWith('subagents/')) throw new Error('Native archive root differs');
+  const logs = await verifyInvocationChain({ readSession: async id => archiveLogs.get(id) }, sessionId, invocations);
+  const usage = [], observations = [];
   for (const call of invocations) {
-    if (!call.childId) { usage.push({ ...call, nativeUsage: null }); continue; }
+    if (!call.childId) { usage.push({ ...call, source: 'dsh-session.zip', complete: false, exactTurns: [] }); continue; }
     const log = logs.get(call.childId);
     const turns = []; let turn;
     for (const event of log.events) {
@@ -59,11 +57,30 @@ async function exportNative(ctx, sessionId, output, invocations) {
       if (event.type === 'turn/end') turn = undefined;
     }
     const exactTurns = turns.map(events => deriveTurnTokenUsage(events) ?? null);
-    observations.push({ childId: call.childId, parentSession: log.session.parentSession, count: log.events.length, lastSeq: log.events.at(-1)?.seq, eventsSha256: createHash('sha256').update(JSON.stringify(log.events)).digest('hex') });
-    const observation = await ctx.sessionQuery.observeSession(call.childId, { projectionMode: 'all' });
-    try { usage.push({ ...call, exactTurns, complete: exactTurns.length > 0 && exactTurns.every(Boolean), nativeUsage: observation.projections?.values?.tokenUsage ?? null, nativeStats: observation.projections?.values?.sessionStats ?? null }); }
-    finally { observation[Symbol.dispose](); }
+    observations.push({ childId: call.childId, parentSession: log.session.parentSession, source: 'dsh-session.zip',
+      archiveEntry: log.entry, entrySha256: log.sha256, count: log.events.length, lastSeq: log.events.at(-1)?.seq,
+      eventsSha256: createHash('sha256').update(JSON.stringify(log.events)).digest('hex') });
+    usage.push({ ...call, source: 'dsh-session.zip', exactTurns, complete: exactTurns.length > 0 && exactTurns.every(Boolean) });
   }
+  return { usage, observations };
+}
+
+async function exportNative(ctx, sessionId, output, invocations) {
+  await verifyInvocationChain(ctx.sessionQuery, sessionId, invocations);
+  const packageRoot = path.join(process.env.LOCALAPPDATA, 'npm/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai');
+  const requireDsh = createRequire(path.resolve(packageRoot, '../../package.json'));
+  const native = await import(pathToFileURL(requireDsh.resolve('@deepseek-ai/dsh-session-log-export')));
+  const { deriveTurnTokenUsage } = await import(pathToFileURL(requireDsh.resolve('@deepseek-ai/dsh-token-meter/client')));
+  const { unzipSync } = requireDsh('fflate');
+  const deps = native.sessionLogExportDeps(ctx);
+  const signal = AbortSignal.timeout(120000);
+  await native.flushLiveSessionLog(deps, sessionId, signal);
+  const root = await native.readSessionLogText(deps.sessionPersistence, sessionId, signal);
+  if (!root) throw new Error('Native root session log missing');
+  await pipeline(Readable.fromWeb(native.streamSessionLogZip(deps, root, sessionId, true, 6, signal)), createWriteStream(path.join(output, 'dsh-session.zip')));
+  // Cold sessionQuery reads may synthesize interrupted-turn closers. Audit the
+  // exported bytes instead; never treat the recovery projection as persisted.
+  const { usage, observations } = await summarizeNativeArchive(unzipSync(await readFile(path.join(output, 'dsh-session.zip'))), sessionId, invocations, deriveTurnTokenUsage);
   await writeFile(path.join(output, 'native-usage.json'), JSON.stringify(usage, null, 2));
   await writeFile(path.join(output, 'native-observations.json'), JSON.stringify(observations, null, 2));
 }

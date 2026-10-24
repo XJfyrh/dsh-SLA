@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { inventory } from '../src/workspace.js';
-import { verifyCheckpoint, verifyInvocationChain } from '../scripts/verify-long-horizon.mjs';
+import { verifyCheckpoint, verifyInvocationChain, summarizeNativeArchive } from '../scripts/verify-long-horizon.mjs';
 
 test('acceptance continuation rejects altered baseline, retained candidate and frozen evaluation', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'sla-checkpoint-'));
@@ -35,4 +35,26 @@ test('native acceptance export rejects invocation logs belonging to another root
   assert.equal((await verifyInvocationChain(query, 'root', [{ childId: 'child' }])).get('child'), logs.child);
   await assert.rejects(verifyInvocationChain(query, 'other-root', [{ childId: 'child' }]), /another root/);
   await assert.rejects(verifyInvocationChain(query, 'root', [{ childId: 'missing' }]), /parent is missing/);
+});
+
+test('native archive audit preserves interrupted raw events and rejects mismatched roots', async () => {
+  const bytes = (id, parentSession, events = []) => new TextEncoder().encode([
+    { type: 'session', id, parentSession }, ...events,
+  ].map(item => JSON.stringify(item)).join('\n') + '\n');
+  const events = [{ seq: 0, type: 'turn/start' }, { seq: 1, type: 'tool/call' }];
+  const files = { 'session.v2.jsonl': bytes('root'), 'subagents/owner/session.v2.jsonl': bytes('owner', 'root'),
+    'subagents/child/session.v2.jsonl': bytes('child', 'owner', events) };
+  const calls = [{ role: 'worker', childId: 'child' }];
+  let observed;
+  const derive = turn => { observed = turn; return turn.at(-1)?.type === 'turn/end' ? { total: 12 } : undefined; };
+  const { usage, observations } = await summarizeNativeArchive(files, 'root', calls, derive);
+  assert.deepEqual(observed, events);
+  assert.equal(usage[0].complete, false);
+  assert.deepEqual(usage[0].exactTurns, [null]);
+  assert.equal(observations[0].count, 2);
+  assert.equal(observations[0].lastSeq, 1);
+  assert.equal(observations[0].entrySha256, createHash('sha256').update(files['subagents/child/session.v2.jsonl']).digest('hex'));
+  await assert.rejects(summarizeNativeArchive(files, 'foreign', calls, derive), /root differs/);
+  delete files['subagents/owner/session.v2.jsonl'];
+  await assert.rejects(summarizeNativeArchive(files, 'root', calls, derive), /another root/);
 });
