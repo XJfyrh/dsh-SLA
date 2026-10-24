@@ -37,7 +37,7 @@ async function fixture(options = {}) {
       const results = options.results ?? [{ score: 90, valid: true }, { score: 1, valid: false }, { score: 110, valid: true }];
       const value = results[trial++ % results.length];
       await writeFile(path.join(args.cwd, 'candidate.json'), JSON.stringify(value));
-      return { summary: 'candidate changed', changes: ['candidate.json'] };
+      return { summary: 'candidate changed' };
     },
     execute: async ({ cwd, signal }) => {
       const { stdout, stderr } = await exec(process.execPath, ['.sla/evaluate.mjs'], { cwd, signal, windowsHide: true });
@@ -282,8 +282,8 @@ test('runtime cache files are allowed but changing a frozen evaluator still bloc
   const f = await fixture();
   const execute = f.adapter.execute;
   f.adapter.execute = async args => {
-    await mkdir(path.join(args.cwd, '.sla', '__pycache__'), { recursive: true });
-    await writeFile(path.join(args.cwd, '.sla', '__pycache__', 'helper.pyc'), 'runtime cache');
+    await mkdir(path.join(args.cwd, '.dsh', 'cache'), { recursive: true });
+    await writeFile(path.join(args.cwd, '.dsh', 'cache', 'helper.pyc'), 'runtime cache');
     return execute(args);
   };
   await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
@@ -294,6 +294,22 @@ test('runtime cache files are allowed but changing a frozen evaluator still bloc
     return output;
   };
   await assert.rejects(f.engine.action(parent, { action: 'adopt' }), /固定评价依据内容被修改/);
+  assert.equal(JSON.parse(await readFile(path.join(f.cwd, 'candidate.json'))).score, 100);
+});
+
+test('evaluation execution cannot add code to the frozen check directory', async () => {
+  const f = await fixture();
+  const execute = f.adapter.execute;
+  f.adapter.execute = async args => {
+    const output = await execute(args);
+    await writeFile(path.join(args.cwd, '.sla', 'runtime-helper.mjs'), 'export const changed = true;');
+    return output;
+  };
+  await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
+  const run = f.engine.get(parent.id);
+  assert.equal(run.status, 'blocked');
+  assert.match(run.message, /固定评价依据新增/);
+  assert.equal(run.baseline, undefined);
   assert.equal(JSON.parse(await readFile(path.join(f.cwd, 'candidate.json'))).score, 100);
 });
 

@@ -6,7 +6,7 @@
 
 ## 安装和使用
 
-需要 Node.js 24、Git、DSH 0.2.1-rc.2 和已登录的模型账号。新机器先运行一次 `dsh --profile sla-dev --from-default-profile web` 建立 Web profile，退出后再安装；本机已完成此步骤。
+需要 Node.js 24、Git、DSH 0.2.1-rc.2 和已登录的模型账号。首次安装先运行一次 `dsh --profile sla-dev --from-default-profile web` 建立 Web profile，退出后再安装。
 
 ```powershell
 npm install --legacy-peer-deps
@@ -70,4 +70,4 @@ npm pack --pack-destination artifacts
 
 `src/client-factory.js` 是界面源码，`client.js` 是随包交付的浏览器产物。修改 Host 后重启 Harness；修改界面后先构建，再刷新页面。
 
-[设计与官方依据](docs/design.md)记录版本、插件契约和与 SLA 论文的对应范围；[验收记录](docs/validation.md)记录真实 Web 流程、失败修复和复跑方法。原有调研在 `research/`。
+[设计与官方依据](docs/design.md)记录版本、插件契约和与 SLA 论文的对应范围；[验收记录](docs/validation.md)记录真实 Web 流程、失败修复和复跑方法；[维护审计](docs/maintenance-audit.md)记录失效内容的删除依据与保留边界。原有调研在 `research/`。

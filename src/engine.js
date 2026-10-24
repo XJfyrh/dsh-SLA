@@ -2,14 +2,14 @@ import path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { inventory, snapshot, changedFiles, copyEvaluation, verifyEvaluation, adopt, recoverAdoption, candidateDiff } from './workspace.js';
-import { advisorSchema, workerSchema, advisorPrompt, workerPrompt, selection } from './prompts.js';
+import { advisorSchema, advisorPrompt, workerPrompt, selection } from './prompts.js';
 import { compare, validateEvaluation } from './task-registry.js';
 import { defaults, settings, initializeResearch, validatePlan, reviewed } from './research-state.js';
 import { reviewCandidate, finishReview } from './review.js';
 
 export class ExplorationEngine {
   constructor({ store, adapter, tasks, root, maxTrials = defaults.maxTrials, maxMinutes = defaults.maxMinutes, directions = defaults.directions, localTrials = defaults.localTrials }) {
-    Object.assign(this, { store, adapter, tasks, root, maxTrials, maxMinutes });
+    Object.assign(this, { store, adapter, tasks, root });
     this.defaults = settings({ maxTrials, maxMinutes, directions, localTrials });
     this.active = new Map();
     this.actions = new Map();
@@ -345,7 +345,7 @@ export class ExplorationEngine {
     try {
       before = await snapshot(seed.dir, dir);
       phase = 'worker';
-      const report = await this.invoke(run, parent, 'worker', dir, workerPrompt(run, assignment, task, direction), workerSchema, signal);
+      const report = await this.invoke(run, parent, 'worker', dir, workerPrompt(run, assignment, task, direction), undefined, signal);
       trial.report = report.summary;
       phase = 'evaluation';
       run.stage = 'evaluate'; run.message = '正在用固定依据检查候选 ' + number; await this.save(run);

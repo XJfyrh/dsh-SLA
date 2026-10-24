@@ -4,7 +4,7 @@
 
 0.3 采用串行多方向 Epoch，状态与恢复契约见[核心规则](core.md)。Host 拥有持久状态；选择任务、调查、规划、执行分别调用全新 spawn 子会话，不继承主对话。项目快照承接候选；评价文件在调查后固定，插件独立执行。未满足任务检查或未完成评估的候选不能成为最佳改进。缺陷任务允许初始基线复现失败，通过修复与回归检查后才能采用。主项目只在用户采用且源文件未变时写入。
 
-## 0.2 扩展边界
+## 任务扩展边界
 
 任务扩展是普通 DSH 插件，通过 `sla` 服务注册；默认的性能和缺陷修复也走同一接口。核心负责状态、候选和证据，扩展负责调查与比较。[扩展契约](extensions.md)是该接口与生命周期的正文。子会话通过官方 Skill 工具加载任务方法，宿主继续提供用量、存储、权限和界面。
 
@@ -62,4 +62,4 @@
 - [持久域](https://github.com/deepseek-ai/deepseek-harness/tree/687f282e8625c6b8d11ff58211a90524be2e4317/packages/storage/storage-domain)：读回与持久写入，不自创 session event。
 - [API Gateway](https://github.com/deepseek-ai/deepseek-harness/blob/687f282e8625c6b8d11ff58211a90524be2e4317/docs/api-gateway.md)：严格描述符、Agent lookup、同源 RPC。
 
-官方开发技能面向 Harness 内运行的 Agent，要求使用其 plugin_manager 工具；本开发环境没有该工具，安装改用同一官方教程公开的 dsh plugin add，避免手写 profile。
+官方开发技能面向 Harness 内运行的 Agent，使用其 `plugin_manager` 工具；从外部终端安装使用官方 CLI `dsh plugin --profile <name> add <path>`。两种入口都由 DSH 管理 profile。

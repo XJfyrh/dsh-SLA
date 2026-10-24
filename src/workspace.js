@@ -105,15 +105,24 @@ export async function copyEvaluation(source, target) {
 
 export async function verifyEvaluation(root, files) {
   const base = path.join(root, '.sla');
-  for (const [name, hash] of Object.entries(files)) {
+  for (const name of Object.keys(files)) {
     if (path.isAbsolute(name) || name.split(/[\\/]/).some(part => part === '..' || !part)) throw new Error('固定评价依据路径无效');
-    let current = base;
-    for (const part of ['', ...name.split('/')]) {
-      if (part) current = path.join(current, part);
-      if ((await lstat(current)).isSymbolicLink()) throw new Error('固定评价依据不允许符号链接');
-    }
-    if (digest(await readFile(current)) !== hash) throw new Error('固定评价依据内容被修改：' + name);
   }
+  const seen = new Set();
+  async function verify(dir, prefix = '') {
+    if ((await lstat(dir)).isSymbolicLink()) throw new Error('固定评价依据不允许符号链接');
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      const name = prefix + entry.name, current = path.join(dir, entry.name);
+      if (entry.isSymbolicLink()) throw new Error('固定评价依据不允许符号链接');
+      if (entry.isDirectory()) { await verify(current, name + '/'); continue; }
+      if (!entry.isFile()) throw new Error('固定评价依据只接受普通文件');
+      if (!Object.hasOwn(files, name)) throw new Error('固定评价依据新增了文件：' + name);
+      if (digest(await readFile(current)) !== files[name]) throw new Error('固定评价依据内容被修改：' + name);
+      seen.add(name);
+    }
+  }
+  await verify(base);
+  for (const name of Object.keys(files)) if (!seen.has(name)) throw new Error('固定评价依据文件缺失：' + name);
 }
 
 export async function adopt(run, authorize = async () => {}, expectedCandidateFiles) {
@@ -123,12 +132,9 @@ export async function adopt(run, authorize = async () => {}, expectedCandidateFi
   const current = await inventory(run.cwd);
   if (changedFiles(before, current).length) throw new Error('原项目已修改，未采用。请查看候选后手动合并。');
   const names = changedFiles(before, after);
-  for (const name of names) {
-    if (!before[name]) {
-      try { await lstat(path.join(run.cwd, name)); throw new Error(`原项目存在未纳入快照的文件 ${name}，未采用。`); }
-      catch (e) { if (e.code !== 'ENOENT') throw e; }
-    }
-    if (current[name] !== before[name]) throw new Error(`原项目已修改 ${name}，未采用。请查看候选后手动合并。`);
+  const sourceHash = async name => {
+    const rootStat = await lstat(run.cwd);
+    if (!rootStat.isDirectory() || rootStat.isSymbolicLink() || await realpath(run.cwd) !== run.cwd) throw new Error('目标根目录包含链接或已改变');
     // A newly created parent must not traverse a link outside the selected root.
     let dir = path.dirname(path.join(run.cwd, name));
     while (dir !== run.cwd) {
@@ -136,39 +142,59 @@ export async function adopt(run, authorize = async () => {}, expectedCandidateFi
       catch (e) { if (e.code !== 'ENOENT') throw e; }
       dir = path.dirname(dir);
     }
+    try {
+      const file = path.join(run.cwd, name), stat = await lstat(file);
+      if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`目标路径不是普通文件：${name}`);
+      if (await realpath(file) !== file) throw new Error(`目标路径包含链接：${name}`);
+      return digest(await readFile(file));
+    } catch (e) { if (e.code === 'ENOENT') return undefined; throw e; }
+  };
+  for (const name of names) {
+    if (!before[name]) {
+      try { await lstat(path.join(run.cwd, name)); throw new Error(`原项目存在未纳入快照的文件 ${name}，未采用。`); }
+      catch (e) { if (e.code !== 'ENOENT') throw e; }
+    }
+    if (await sourceHash(name) !== before[name]) throw new Error(`原项目已修改 ${name}，未采用。请查看候选后手动合并。`);
   }
   const backups = new Map();
   for (const name of names) backups.set(name, before[name] ? await readFile(path.join(run.cwd, name)) : null);
   const journal = { state: 'applying', files: names, before, after, backupDirectory: run.baselineDir };
   await authorize();
+  if (changedFiles(before, await inventory(run.cwd)).length) throw new Error('原项目已修改，未采用。请查看候选后手动合并。');
   await writeJournal(run.root, journal);
+  const attempted = new Set();
   try {
     for (const name of names) {
+      const beforeAuthorization = await inventory(run.cwd);
       await authorize();
+      if (changedFiles(beforeAuthorization, await inventory(run.cwd)).length) throw new Error('原项目已修改，未采用。请查看候选后手动合并。');
+      if (await sourceHash(name) !== before[name]) throw new Error(`原项目已修改 ${name}，未采用。请查看候选后手动合并。`);
       const dest = path.join(run.cwd, name);
       if (after[name]) {
         const bytes = await readFile(path.join(run.best.dir, name));
         if (digest(bytes) !== after[name]) throw new Error(`写回前候选文件已改变：${name}`);
         await mkdir(path.dirname(dest), { recursive: true });
+        attempted.add(name);
         await writeFile(dest, bytes);
-      } else await rm(dest);
+      } else { attempted.add(name); await rm(dest); }
     }
-    for (const name of names) {
-      const dest = path.join(run.cwd, name);
-      if (after[name]) {
-        if (digest(await readFile(dest)) !== after[name]) throw new Error(`采用后文件校验失败：${name}`);
-      } else {
-        try { await lstat(dest); throw new Error(`采用后文件仍存在：${name}`); }
-        catch (e) { if (e.code !== 'ENOENT') throw e; }
-      }
+    // Check original paths directly: adopting .gitignore can change Git's inventory.
+    for (const name of new Set([...Object.keys(before), ...Object.keys(after)])) {
+      if (await sourceHash(name) !== after[name]) throw new Error(`原项目已修改或采用后文件校验失败：${name}`);
     }
   } catch (error) {
-    for (const [name, bytes] of backups) {
-      const dest = path.join(run.cwd, name);
-      if (bytes === null) await rm(dest, { force: true });
-      else await writeFile(dest, bytes);
+    const rollbackErrors = [];
+    for (const name of attempted) {
+      try {
+        const hash = await sourceHash(name);
+        if (hash === before[name]) continue;
+        if (hash !== after[name]) throw new Error(`采用期间文件再次改变，保留当前内容：${name}`);
+        const bytes = backups.get(name), dest = path.join(run.cwd, name);
+        if (bytes === null) await rm(dest, { force: true });
+        else await writeFile(dest, bytes);
+      } catch (rollbackError) { rollbackErrors.push(String(rollbackError.message ?? rollbackError)); }
     }
-    await writeJournal(run.root, { ...journal, state: 'rolled-back' });
+    await writeJournal(run.root, { ...journal, state: rollbackErrors.length ? 'applying' : 'rolled-back', error: String(error.message ?? error), rollbackErrors });
     throw error;
   }
   await writeJournal(run.root, { ...journal, state: 'applied' });

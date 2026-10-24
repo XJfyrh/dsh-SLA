@@ -151,7 +151,7 @@ export default class SlaService extends TypertRemoteService {
       combined.throwIfAborted();
       if (this.calls.get(activation.childId)?.steps > limits.maxStepsPerCall + 1) throw new Error(`子会话达到 ${limits.maxStepsPerCall} 个工作步和 1 个结果提交步上限，尚未提交完整结果；本次调用证据已保留。`);
       if (result.stopReason !== 'completed') throw new Error(`子会话未完成：${result.stopReason} ${result.diagnostic ?? '未提交完整结果'}`);
-      if (role === 'worker') return { summary: result.output.filter(x => x.type === 'text').map(x => x.text).join('\n'), changes: [] };
+      if (role === 'worker') return { summary: result.output.filter(x => x.type === 'text').map(x => x.text).join('\n') };
       if (!result.structured) throw new Error('子会话未提交结构化结果');
       return result.structured;
     } finally {

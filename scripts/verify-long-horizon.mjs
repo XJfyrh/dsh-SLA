@@ -108,7 +108,6 @@ async function campaign(ctx, input) {
       checkpointed.add(epoch.number);
       const target = path.join(input.output, 'checkpoint-' + epoch.number);
       await mkdir(target, { recursive: true });
-      // All candidate and criteria directories referenced here are immutable.
       // This is an acceptance checkpoint, not a second session log/export.
       await cp(run.root, path.join(target, 'artifacts'), { recursive: true, errorOnExist: true, force: false });
       const state = structuredClone(run);

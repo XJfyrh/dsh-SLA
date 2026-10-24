@@ -1,4 +1,4 @@
-// Temporary Host overlay: verifies new presentation output through real DSH spawn
+// Development Host overlay: verifies Worker Markdown and Reviewer metadata through DSH spawn
 // and structured-output services, with deterministic model responses and no API call.
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';

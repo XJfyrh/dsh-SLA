@@ -1,4 +1,3 @@
-// A small explicit Typert contribution: both faces use identical wire contracts.
 const stringCodec = {
   mode: 'strict', typeSymbol: 'string',
   create: () => ({ parse(value) {

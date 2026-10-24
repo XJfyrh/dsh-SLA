@@ -1,9 +1,7 @@
 import { advisorEvidence, feedback } from './research-state.js';
-const strings = { type: 'array', items: { type: 'string' } };
 const schema = properties => ({ type: 'object', properties, required: Object.keys(properties), additionalProperties: false });
 export const scoutSchema = schema({ title: { type: 'string' }, criterion: { type: 'string' }, unit: { type: 'string' }, ready: { type: 'boolean' }, reason: { type: 'string' } });
 export const advisorSchema = schema({ assignments: { type: 'array', items: schema({ direction: { type: 'string' }, hypothesis: { type: 'string', description: '用一句话提出由当前代码或实测结果支持、仍需实验验证的假设。' }, instructions: { type: 'string', description: '用 2–4 句话说明要改变的机制、必须保持的行为，以及局部尝试需要验证什么；实现细节由 Worker 决定。' }, evidenceTrials: { type: 'array', items: { type: 'integer' } } }) }, stop: { type: 'boolean' }, reason: { type: 'string', description: '简短说明本轮选择或停止的实际依据。' } });
-export const workerSchema = schema({ summary: { type: 'string' }, changes: strings });
 export const intro = run => `你是 SLA 持续探索的一次全新调用。目标：${run.goal}\n用户补充：${run.notes.join('\n') || '无'}\n使用目录中与当前任务相关的 DSH 技能。只在当前工作目录内修改文件，不访问其他会话、源项目、兄弟候选、凭据或网络；允许读取所选技能及其引用资源。不要提交 Git，不调用其他 agent。用中文返回结论。按本次调用提示的工作额度尽早完成并提交结果；优先用相对路径，批量读取。`;
 export function advisorPrompt(run, task) {
   return `${intro(run)}
