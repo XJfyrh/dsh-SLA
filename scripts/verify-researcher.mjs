@@ -1,7 +1,7 @@
 // Load through a temporary dsh --patch overlay. Uses the real Host, spawn,
 // tool and sandbox services, with scripted model output and no API calls.
 import assert from 'node:assert/strict';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, access } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
@@ -36,12 +36,16 @@ class ScriptedAdapter extends LlmAdapter {
   requests = 0;
   async resolveModel(provider, model) { return { provider, id: model, name: model }; }
   async *stream(options) {
-    const names = options.tools.map(tool => tool.name);
-    for (const name of requiredTools) assert.ok(names.includes(name), `first request missing ${name}`);
+    const names = (options.tools ?? []).map(tool => tool.name);
+    const queued = this.queue.shift();
+    assert.ok(queued, 'unexpected model request');
+    if (queued.finalTools) {
+      assert.deepEqual(names, queued.finalTools, 'final step exposes working tools');
+      assert.ok(JSON.stringify(options).includes('只剩结果提交步'), 'final submission guidance missing');
+    } else for (const name of requiredTools) assert.ok(names.includes(name), `request missing ${name}`);
     assert.ok(!names.includes('sla_control'), 'child inherited the controller');
     this.requests++;
-    const response = this.queue.shift();
-    assert.ok(response, 'unexpected model request');
+    const response = queued.finalTools ? queued.response : queued;
     yield* typeof response === 'function' ? response(options) : response;
   }
 }
@@ -72,7 +76,7 @@ async function verify(ctx) {
     },
   });
   const mainTools = () => ctx.tools.schemas(parent.agent).map(tool => tool.name).sort();
-  const before = mainTools();
+  let before = mainTools();
   assert.ok(before.includes('sla_control'));
   assert.ok(!before.includes('write'));
   const onStarted = async id => {
@@ -129,11 +133,47 @@ async function verify(ctx) {
     assert.equal(ctx.sla.researchOwners.size, 0);
     assert.equal(ctx.sla.calls.size, 0);
     assert.deepEqual(mainTools(), before);
-    adapter.queue.push(...Array.from({ length: 24 }, (_, index) => options => {
-      if (index >= 20) assert.ok(JSON.stringify(options).includes('本次 SLA 调用已进入收尾阶段'), 'step budget feedback missing');
-      return tool('read', { file_path: 'probe-1.txt' });
-    }));
-    await assert.rejects(ctx.sla.invoke({ parent: parent.agent, role: 'worker', cwd, prompt: 'Exercise the invocation step limit.', signal: AbortSignal.timeout(60000), onStarted }), /24 步上限/);
+    const fillWork = (last = tool('read', { file_path: 'probe-1.txt' })) => {
+      adapter.queue.push(...Array.from({ length: 23 }, (_, index) => options => {
+        if (index >= 20) assert.ok(JSON.stringify(options).includes('本次 SLA 调用已进入收尾阶段'), 'step budget feedback missing');
+        return tool('read', { file_path: 'probe-1.txt' });
+      }), last);
+    };
+    const schema = { type: 'object', properties: { ok: { type: 'boolean' } }, required: ['ok'], additionalProperties: false };
+    const invoke = (role, signal = AbortSignal.timeout(60000)) => ctx.sla.invoke({ parent: parent.agent, role, cwd, prompt: 'Exercise the final submission step.', schema, signal, onStarted });
+    fillWork(tool('write', { file_path: '.sla/last-work.txt', content: 'written in step 24' }));
+    adapter.queue.push({ finalTools: ['structured_output'], response: tool('structured_output', { ok: true }) });
+    assert.deepEqual(await invoke('scout'), { ok: true });
+    assert.equal(await readFile(path.join(cwd, '.sla/last-work.txt'), 'utf8'), 'written in step 24');
+    fillWork(); adapter.queue.push({ finalTools: [], response: done });
+    assert.equal((await invoke('worker')).summary, 'done');
+    for (const role of ['worker', 'scout']) {
+      fillWork();
+      adapter.queue.push({ finalTools: role === 'worker' ? [] : ['structured_output'], response: tool('write', { file_path: `forbidden-${role}.txt`, content: 'must never be written' }) });
+      await assert.rejects(invoke(role), /24 个工作步和 1 个结果提交步上限/);
+      await assert.rejects(access(path.join(cwd, `forbidden-${role}.txt`)), { code: 'ENOENT' });
+      assert.equal(results.at(-1).isError, true);
+    }
+    fillWork();
+    adapter.queue.push({ finalTools: ['structured_output'], response: tool('structured_output', { ok: 'invalid type' }) });
+    await assert.rejects(invoke('scout'), /24 个工作步和 1 个结果提交步上限/);
+    fillWork(); adapter.queue.push({ finalTools: ['structured_output'], response: done });
+    await assert.rejects(invoke('scout'), /未完成|未提交/);
+    const cancellation = new AbortController();
+    fillWork();
+    adapter.queue.push({ finalTools: ['structured_output'], response: () => { cancellation.abort(new Error('cancel final submission')); return done; } });
+    await assert.rejects(invoke('scout', cancellation.signal), /cancel final submission/);
+    const nativeParentTools = before;
+    const restorePresentation = parent.agent.ctx.tools.presentAs('ptc');
+    before = mainTools();
+    try {
+      assert.ok(before.includes('run_code'), 'parent did not switch to PTC presentation');
+      fillWork(); adapter.queue.push({ finalTools: ['structured_output'], response: tool('structured_output', { ok: true }) });
+      assert.deepEqual(await invoke('scout'), { ok: true });
+      assert.deepEqual(mainTools(), before);
+    } finally { restorePresentation(); before = nativeParentTools; }
+    adapter.queue.push(tool('structured_output', { ok: true }));
+    assert.deepEqual(await invoke('scout'), { ok: true });
     assert.equal(adapter.queue.length, 0);
     assert.equal(ctx.sla.calls.size, 0);
     assert.equal(ctx.sla.researchOwners.size, 0);
@@ -163,7 +203,8 @@ async function verify(ctx) {
       assert.equal(await readFile(path.join(project, 'value.txt'), 'utf8'), 'original');
       assert.equal(nativeEvaluations, 0);
     } finally { await nativePlugin.dispose(); }
-    return { passed: true, model: 'scripted; no external API', requests: adapter.requests, children: children.map(child => child.id), tools: results, tasks: ctx.sla.tasks.list(), stepLimitReported: true, nativeReadonlyAdoptionBlocked: true, pluginLifecycleVerified: true, skillLoaded: true, projectSkillLoaded: true, publicSlaPresets: ['sla'], privateToolsDisposed: children.every(child => ctx.tools.get('write', child) === undefined), cwd };
+    assert.deepEqual(mainTools(), before);
+    return { passed: true, model: 'scripted; no external API', requests: adapter.requests, children: children.map(child => child.id), tools: results, tasks: ctx.sla.tasks.list(), stepLimitReported: true, finalSubmissionVerified: true, finalStepWritesDenied: true, finalStepCancellationVerified: true, ptcParentVerified: true, nativeReadonlyAdoptionBlocked: true, pluginLifecycleVerified: true, skillLoaded: true, projectSkillLoaded: true, publicSlaPresets: ['sla'], privateToolsDisposed: children.every(child => ctx.tools.get('write', child) === undefined), cwd };
   } finally {
     unlisten();
     unregister();
