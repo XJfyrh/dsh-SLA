@@ -1,6 +1,6 @@
 {
   "name": "dsh-sla",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "private": true,
   "type": "module",
   "description": "从一句目标开始，自主建立依据并持续探索项目改进。",
