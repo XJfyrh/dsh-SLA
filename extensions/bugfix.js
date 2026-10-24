@@ -13,11 +13,12 @@ export const bugfixTask = {
 最后一行输出 SLA_RESULT {"valid":布尔,"reproduced":布尔,"regressionPassed":布尔,"summary":"实际检查结果"}。
 检查正常完成时始终 exit 0，包括 reproduced:true 或 valid:false；只有设施、导入或语法错误才非零退出。不要把缺陷复现当成评价进程失败。运行时不改写 .sla/ 或项目文件，输出日志到 stdout；需要缓存时使用 .dsh/cache/。${codeRuntimeGuidance}
 reproduced 表示目标缺陷被实际断言复现，不能用进程报错、语法错误或依赖缺失代替。regressionPassed 表示不包含目标缺陷用例的相关原有行为检查通过。valid 当且仅当缺陷不再复现且回归检查通过。
+复用已有测试时，确认所选回归用例实际执行且无失败；目标缺陷用例按复现协议记录。通过数量可因新增测试而增加，不要要求恰好等于初始数量。说明中的记录数、分组数等工作量从实际夹具计算，不靠估计。
 复现检查必须同时验证正确的预期行为，不能因为返回不同的另一种错误结果就判修复。保持失败可见，不跳过或删除原有断言；评价程序遇到设施错误应非零退出。
 初始项目应该 reproduced:true、regressionPassed:true、valid:false。准备不出明确复现时 ready:false，说明缺少条件。不要编造分数。criterion 描述复现条件、正确行为及回归范围；unit 返回空字符串。
 title 用一句简短中文概括判断目标；criterion 用 Markdown 小标题和列表分别说明复现条件、正确行为、回归范围，命令与标识符用行内代码。评价 summary 用简短中文说明实际结果与失败原因，不拼接完整日志或内部路径；完整诊断输出到 stdout。
 所有检查与辅助文件放 .sla/；这些文件将原样冻结并独立运行。` },
-  instructions: '以固定复现用例和回归检查确认修复。除明确需要修正的错误行为外，保持原有公共行为；不要删除、跳过或放宽测试。',
+  instructions: '以固定复现用例和回归检查确认修复。除明确需要修正的错误行为外，保持原有公共行为；不要删除、跳过或放宽测试。' + codeRuntimeGuidance,
   review: preservedBehaviorReview('缺陷修复'),
   async evaluate({ execute }) {
     const value = validateEvaluation(parseResult(await execute('node .sla/evaluate.mjs')));
