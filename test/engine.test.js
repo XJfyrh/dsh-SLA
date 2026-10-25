@@ -92,7 +92,9 @@ test('adoption never overwrites an existing Git-ignored file', async () => {
   await writeFile(path.join(f.cwd, 'local.json'), 'user data');
   await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
   await writeFile(path.join(f.engine.get(parent.id).best.dir, 'local.json'), 'candidate data');
-  await assert.rejects(f.engine.action(parent, { action: 'adopt' }), /未纳入快照/);
+  // The sealed artifact now rejects this mutation before target-path checks.
+  // Workspace tests independently exercise ignored target-file protection.
+  await assert.rejects(f.engine.action(parent, { action: 'adopt' }), /已封存候选内容已改变/);
   assert.equal(await readFile(path.join(f.cwd, 'local.json'), 'utf8'), 'user data');
 });
 test('recovery reconciles applied files and holds ambiguous partial adoption', async () => {

@@ -2,10 +2,21 @@ import { readFile, lstat, realpath } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { inventory, changedFiles } from './workspace.js';
+import { artifactById } from './kernel.js';
+import { verifyJsonArtifact } from './json-artifacts.js';
 
 // Read only the run's retained snapshots. The browser never supplies file paths.
 export async function changePreview(run) {
-  const identity = { runId: run?.id, trial: run?.best?.trial, criteriaVersion: run?.criteriaVersion ?? run?.revision };
+  const identity = { runId: run?.id, trial: run?.best?.trial, criteriaVersion: run?.criteriaVersion ?? run?.revision,
+    ...(run?.best?.artifactId ? { artifactId: run.best.artifactId } : {}) };
+  if (run?.best?.trial && run.workflow?.kind === 'native') {
+    const before = artifactById(run, run.baselineArtifactId), after = artifactById(run, run.best.artifactId);
+    if (before.kind !== 'json' || after.kind !== 'json') return { ...identity, kind: 'artifact', unsupported: true, files: [] };
+    verifyJsonArtifact(before); verifyJsonArtifact(after);
+    const oldText = JSON.stringify(before.payload, null, 2) + '\n', newText = JSON.stringify(after.payload, null, 2) + '\n';
+    return { ...identity, kind: 'artifact', files: before.digest === after.digest ? [] : [{ path: 'candidate.json', kind: 'modified',
+      ...(oldText.length + newText.length > 512 * 1024 ? { omitted: 'large' } : { oldText, newText }) }] };
+  }
   if (!run?.best?.trial || !run.baselineDir || !run.best.dir) return { ...identity, files: [] };
   const before = await inventory(run.baselineDir), after = await inventory(run.best.dir);
   const expected = run.best.files ?? run.trials?.find(t => t.number === run.best.trial)?.files;

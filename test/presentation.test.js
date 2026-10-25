@@ -36,6 +36,7 @@ test('no actionable or comparable result leaks through rebuild, outdated review,
 test('non-numeric tasks retain their own result language without performance assumptions', () => {
   const view = decisionView(decisionRun({ valid: true, display: '修复通过' }));
   assert.equal(view.ready, true); assert.equal(view.evaluation.display, '修复通过'); assert.equal(view.evaluation.score, undefined);
+  assert.equal(decisionView({ ...decisionRun(), best: { trial: 1, eligibility: { retain: true, deliver: false } } }).ready, false);
 });
 
 test('semantic check metadata and historical finding remain separate from current passed result', () => {

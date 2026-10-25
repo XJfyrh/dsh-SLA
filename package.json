@@ -1,6 +1,6 @@
 {
   "name": "dsh-sla",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "从一句目标开始，自主建立依据并持续探索项目改进。",
@@ -13,6 +13,11 @@
     "./tools": "./src/tools.js",
     "./performance": "./extensions/performance.js",
     "./bugfix": "./extensions/bugfix.js",
+    "./parameters": "./extensions/parameters.js",
+    "./workflow": {
+      "types": "./src/workflow.d.ts",
+      "default": "./src/workflow.js"
+    },
     "./extension": {
       "types": "./src/extension.d.ts",
       "default": "./src/evaluation.js"
@@ -37,6 +42,7 @@
   "scripts": {
     "test": "node --test test/*.test.js examples/*/*.test.js",
     "check": "node scripts/check.mjs",
+    "check:types": "npm exec --yes --package typescript@5.9.3 -- tsc --noEmit --strict --skipLibCheck --module NodeNext --target ES2022 test/workflow-types.ts",
     "build:client": "node scripts/build-client.mjs"
   },
   "dependencies": {

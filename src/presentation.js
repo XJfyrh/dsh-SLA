@@ -24,7 +24,8 @@ export function currentEvaluation(run, trial) {
 }
 
 export function matchesPreview(preview, run) {
-  return preview?.runId === run.id && preview.trial === run.best?.trial && preview.criteriaVersion === (run.criteriaVersion ?? run.revision);
+  return preview?.runId === run.id && preview.trial === run.best?.trial && preview.criteriaVersion === (run.criteriaVersion ?? run.revision)
+    && (!run.best?.artifactId || preview.artifactId === run.best.artifactId);
 }
 
 // Only explicitly authored sections are promoted. Historical prose is never guessed or rewritten.
@@ -65,7 +66,7 @@ export function decisionView(run) {
     && run.reviewedBest?.revision === run.revision && run.reviewedBest?.criteriaVersion === run.criteriaVersion && !run.pendingReview);
   const moving = ['running', 'preparing', 'pausing', 'stopping'].includes(run.status);
   return { trial: hasCandidate ? trial : null, evaluation, checks, approved,
-    ready: !!hasCandidate && checks.status === 'passed' && approved && !run.pendingReview && !moving && !run.adoptionPending && !run.adopted,
+    ready: !!hasCandidate && run.best?.eligibility?.deliver !== false && checks.status === 'passed' && approved && !run.pendingReview && !moving && !run.adoptionPending && !run.adopted,
     brief: hasCandidate ? candidateBrief(trial.report) : {},
     excluded: (run.trials ?? []).filter(t => t.number !== trial?.number && t.revision === run.revision && (() => {
       const result = currentEvaluation(run, t);

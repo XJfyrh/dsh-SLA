@@ -35,9 +35,9 @@ export default class SlaService extends TypertRemoteService {
     this.researchOwners = new Map();
     ctx.on('agent/created', async ({ agent }) => {
       if (!this.researchOwners.has(agent.session.header.parentSession)) return;
-      const role = this.researchOwners.get(agent.session.header.parentSession);
+      const { role, blueprint, structured } = this.researchOwners.get(agent.session.header.parentSession);
       // Harness awaits creation listeners before the child's first model request.
-      await mountResearcher(agent.ctx, role);
+      await mountResearcher(agent.ctx, role, blueprint);
       agent.ctx.tools.presentAs('native');
       const workSteps = () => this.calls.get(agent.id)?.workSteps ?? 24;
       const submitting = () => (this.calls.get(agent.id)?.steps ?? 0) > workSteps();
@@ -47,15 +47,15 @@ export default class SlaService extends TypertRemoteService {
         const assembly = await next();
         // DSH assembles tools before pre-step increments the admitted count.
         if ((this.calls.get(agent.id)?.steps ?? 0) < workSteps()) return assembly;
-        return { ...assembly, tools: assembly.tools.filter(tool => role !== 'worker' && tool.name === 'structured_output') };
+        return { ...assembly, tools: assembly.tools.filter(tool => structured && tool.name === 'structured_output') };
       });
-      agent.ctx.tools.guard(exec => submitting() && (role === 'worker' || exec.name !== 'structured_output')
+      agent.ctx.tools.guard(exec => submitting() && (!structured || exec.name !== 'structured_output')
         ? 'SLA 工作步骤已用完，本步只提交已有结果，不再执行工具。' : undefined);
       agent.ctx.systemPrompt.context({
         name: 'sla:invocation-budget', order: 1000, required: true, interpolate: false,
         text: () => {
           const steps = this.calls.get(agent.id)?.steps ?? 0;
-          if (submitting()) return `本次 SLA 调用只剩结果提交步，工作工具已收起。${role === 'worker' ? '立即用 Markdown 汇报已写入的改动和未验证事项，不再调用工具。' : '立即调用 structured_output 提交已有结果；按本阶段格式如实说明未完成条件，不能把未执行的检查说成通过。'}文件写好不等于调用完成。`;
+          if (submitting()) return `本次 SLA 调用只剩结果提交步，工作工具已收起。${!structured ? '立即用 Markdown 汇报已完成的工作和未验证事项，不再调用工具。' : '立即调用 structured_output 提交已有结果；按本阶段格式如实说明未完成条件，不能把未执行的检查说成通过。'}产物已产生不等于结果已验证。`;
           return steps < workSteps() - 6 ? `本次 SLA 调用最多 ${workSteps()} 个工作步，另有 1 个只提交结果的步骤；尽早完成，不必用满。`
             : `本次 SLA 调用已进入收尾阶段。包含当前步还剩 ${workSteps() + 1 - steps} 个工作步，之后只允许提交结果。停止增加检查或临时样例，优先完成已有工作；无法完成时如实说明缺少条件。需要结构化输出的角色必须调用结果提交工具，文件已写好不等于调用完成。`;
         },
@@ -96,6 +96,7 @@ export default class SlaService extends TypertRemoteService {
     await this.engine.recover();
   }
   registerTask(task) { return this.tasks.register(task); }
+  registerWorkflow(workflow) { return this.tasks.registerWorkflow(workflow); }
   assertWritable(parent) {
     if (this.ctx.sandboxPolicy.resolve({ session: parent.session }).mode === 'read-only') throw new Error('当前会话是只读模式，未执行评价或写回。');
   }
@@ -113,7 +114,7 @@ export default class SlaService extends TypertRemoteService {
     if (['start', 'steer'].includes(request.action) && !request.text) throw new Error('请输入目标或补充要求。');
     return JSON.stringify(view(await this.engine.action(agent, request)));
   }
-  async invoke({ parent, role, cwd, prompt, schema, settings, signal, onStarted }) {
+  async invoke({ parent, role, cwd, prompt, schema, blueprint, settings, signal, onStarted }) {
     if (this.ctx.sandboxPolicy.resolve({ session: parent.session }).mode === 'read-only') throw new Error('会话已切换为只读，探索已停止。');
     const provider = this.ctx.subagents.getProvider('spawn');
     if (!provider || provider.inheritsParentContext !== false || !provider.capabilities.outputSchema) throw new Error('当前 Harness 未提供 fresh spawn + structured output 能力。');
@@ -133,11 +134,11 @@ export default class SlaService extends TypertRemoteService {
       },
     });
     let activation;
-    this.researchOwners.set(owner.agent.id, role);
+    this.researchOwners.set(owner.agent.id, { role, blueprint, structured: !!schema });
     try {
       activation = await this.ctx.subagents.startActivation({
       provider: 'spawn', label: 'SLA · ' + role, delivery: 'caller', signal: combined,
-      request: { parent: owner.agent, cwd, prompt: [{ type: 'text', text: prompt }], ...(role === 'worker' ? {} : { outputSchema: schema }) },
+      request: { parent: owner.agent, cwd, prompt: [{ type: 'text', text: prompt }], ...(schema ? { outputSchema: schema } : {}) },
       });
     } catch (error) { await owner.dispose(); throw error; }
     finally { this.researchOwners.delete(owner.agent.id); }
@@ -145,15 +146,20 @@ export default class SlaService extends TypertRemoteService {
     const cancel = () => { activation.dispose().catch(error => this.ctx.logger.warn(String(error))); };
     combined.addEventListener('abort', cancel, { once: true });
     if (combined.aborted) cancel();
+    let failure, settled = false;
     try {
       await onStarted(activation.childId);
       const result = await activation.result;
+      settled = true;
       combined.throwIfAborted();
       if (this.calls.get(activation.childId)?.steps > limits.maxStepsPerCall + 1) throw new Error(`子会话达到 ${limits.maxStepsPerCall} 个工作步和 1 个结果提交步上限，尚未提交完整结果；本次调用证据已保留。`);
       if (result.stopReason !== 'completed') throw new Error(`子会话未完成：${result.stopReason} ${result.diagnostic ?? '未提交完整结果'}`);
-      if (role === 'worker') return { summary: result.output.filter(x => x.type === 'text').map(x => x.text).join('\n') };
+      if (!schema) return { summary: result.output.filter(x => x.type === 'text').map(x => x.text).join('\n') };
       if (!result.structured) throw new Error('子会话未提交结构化结果');
       return result.structured;
+    } catch (error) {
+      failure = error instanceof Error ? error : new Error(String(error));
+      throw failure;
     } finally {
       combined.removeEventListener('abort', cancel);
       try { await activation.dispose(); }
@@ -161,6 +167,9 @@ export default class SlaService extends TypertRemoteService {
         this.calls.delete(activation.childId);
         await owner.dispose();
       }
+      // DSH caller results settle after managed activity/descendant cleanup.
+      // Only expose this fact after both activation and owner disposal succeed.
+      if (failure && settled) failure.quiescent = true;
     }
   }
 }

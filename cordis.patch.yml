@@ -5,6 +5,8 @@
       name: dsh-sla/performance
     - id: sla-bugfix
       name: dsh-sla/bugfix
+    - id: sla-parameters
+      name: dsh-sla/parameters
     - id: preset-sla
       name: '@deepseek-ai/dsh-agent-preset'
       config:

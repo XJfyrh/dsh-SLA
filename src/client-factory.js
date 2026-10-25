@@ -42,6 +42,8 @@ function factory(require) {
 .sla-decision{padding:14px 0}.sla-decision h3{margin-top:14px}.sla-decision h3:first-child{margin-top:0}.sla-origin{border-left:2px solid var(--dsw-alias-border-l1);padding:2px 0 2px 12px;margin:12px 0}.sla-next{padding:12px;border-radius:8px;background:var(--dsw-alias-interactive-bg-hover)}.sla-check-list .sla-origin summary{display:list-item}.sla-check-list .sla-origin summary::before{content:none}.sla-result time{font-size:11px;color:var(--dsw-alias-label-secondary)}.sla-result:focus-visible,.sla-result summary:focus-visible{outline:2px solid var(--dsw-alias-label-primary);outline-offset:3px}
 `;
   const moving = run => run && ['running', 'preparing', 'pausing', 'stopping'].includes(run.status);
+  Object.assign(dictionaries.zh, { artifactChanges: '查看候选内容', artifactCount: '项', artifactHint: '初始制品 → 当前候选', artifactChanged: '候选内容已封存，可展开查看实际变化。', artifactUnchanged: '候选尚未交付', artifactReady: '可以交付；交付前会再次评价并核对候选内容。', artifactDelivered: '已交付结果，候选与评价依据已保留。', artifactEmpty: '候选内容没有变化', artifactUnsupported: '此类制品暂不支持内容预览，可在证据中查看。', delivery: '交付记录', artifactScope: '结论覆盖当前评价数据和规则，完整范围见判断依据。', frontier: '保留的候选', frontierHint: '这些候选未被其他结果明确优于；不可比结果共同保留。' });
+  Object.assign(dictionaries.en, { artifactChanges: 'View candidate content', artifactCount: 'items', artifactHint: 'Initial artifact → current candidate', artifactChanged: 'Candidate content is sealed. Expand the preview to inspect changes.', artifactUnchanged: 'Candidate not delivered', artifactReady: 'Ready to deliver. Delivery rechecks the result and artifact content.', artifactDelivered: 'Result delivered; candidate and evaluation evidence retained.', artifactEmpty: 'Candidate content is unchanged', artifactUnsupported: 'Preview is unavailable for this artifact kind. See the evidence.', delivery: 'Delivery receipt', artifactScope: 'The conclusion covers the current evaluation data and rules. See the criteria for scope.', frontier: 'Retained candidates', frontierHint: 'No other retained result is strictly better; incomparable results remain available.' });
   const state = run => run.adopted ? 'adopted' : run.status;
   const value = x => x?.display ?? (Number.isFinite(x?.score) ? String(Number(x.score.toPrecision(6))) : '—');
   return {
@@ -57,6 +59,7 @@ function factory(require) {
         ctx.effect(() => () => runs.dispose());
         const tabKind = 'dsh-sla';
         const t = ctx.locale.bind('sla');
+        const resultLabel = (run, key) => t(run.workflow?.kind === 'native' ? ({ adoptedSummary: 'artifactDelivered', ready: 'artifactReady', unchanged: 'artifactUnchanged', changes: 'artifactChanges', changesHint: 'artifactHint', files: 'artifactCount', noChanges: 'artifactEmpty' }[key] ?? key) : key);
         const toolbarLabels = () => ({ codeLabel: t('code'), wrapLabel: t('wrap'), unwrapLabel: t('unwrap') });
         function Prose({ text }) {
           if (!text) return null;
@@ -97,18 +100,18 @@ function factory(require) {
           return h(React.Fragment, null,
             h('p', { className: 'sla-result-score' }, t('baseline'), ' ', value(run.baseline), ' → ', value(view.evaluation), ' ', run.criteria?.unit?.split(/[，,；;]/)[0]),
             h('p', { className: 'sla-muted' }, `${t(run.adopted && run.adoptionCheck ? 'adoptedValue' : 'selectedValue')} · ${t('candidate')} #${view.trial.number} · ${t('criterionVersion')} ${run.criteriaVersion ?? run.revision}`),
-            compact ? h('p', { className: 'sla-muted' }, run.pendingReview ? t('pendingReview') : run.adopted ? t('adoptedSummary') : view.ready ? t('ready') : t('unchanged')) : h('div', { className: 'sla-decision' },
+            compact ? h('p', { className: 'sla-muted' }, run.pendingReview ? t('pendingReview') : resultLabel(run, run.adopted ? 'adoptedSummary' : view.ready ? 'ready' : 'unchanged')) : h('div', { className: 'sla-decision' },
               h('h3', null, t('changed')),
               view.brief.change && h('p', { className: 'sla-muted' }, t('authorReport')),
-              view.brief.change ? h(Prose, { text: view.brief.change }) : h('p', null, `${t('changeFiles')}：${(view.trial.changes ?? []).join('、') || '—'}`),
-              !view.brief.change && h('p', { className: 'sla-muted' }, t('legacyBrief')),
+              view.brief.change ? h(Prose, { text: view.brief.change }) : h('p', null, run.workflow?.kind === 'native' ? t('artifactChanged') : `${t('changeFiles')}：${(view.trial.changes ?? []).join('、') || '—'}`),
+              !view.brief.change && run.workflow?.kind !== 'native' && h('p', { className: 'sla-muted' }, t('legacyBrief')),
               h(Original, { text: view.trial.report, label: 'workerRecord' }),
               h('h3', null, t('whyChosen')),
               h('p', null, view.checks.status === 'passed' ? `${t('chosen')} #${view.trial.number}。` : t(view.checks.status === 'failed' ? 'failedCheck' : 'unknownCheck')),
               view.excluded.length > 0 && h('p', { className: 'sla-muted' }, `${t('excluded')}：${view.excluded.map(n => '#' + n).join('、')}`),
               run.pendingReview && h('p', null, t('pendingReview')),
               !view.approved && !run.adopted && h('p', null, t('reviewRequired')),
-              view.brief.unverified ? h(React.Fragment, null, h('h3', null, t('unverified')), h(Prose, { text: view.brief.unverified }), h('p', { className: 'sla-muted' }, t('verifiedScope'))) : h('details', { className: 'sla-details' }, h('summary', null, t('unverified')), h('p', null, t('noUnverified')), h('p', { className: 'sla-muted' }, t('verifiedScope')))),
+              run.workflow?.kind === 'native' ? h('p', { className: 'sla-muted' }, t('artifactScope')) : view.brief.unverified ? h(React.Fragment, null, h('h3', null, t('unverified')), h(Prose, { text: view.brief.unverified }), h('p', { className: 'sla-muted' }, t('verifiedScope'))) : h('details', { className: 'sla-details' }, h('summary', null, t('unverified')), h('p', null, t('noUnverified')), h('p', { className: 'sla-muted' }, t('verifiedScope')))),
           );
         }
         function Changes({ run, sessionId }) {
@@ -128,12 +131,12 @@ function factory(require) {
           const data = matchesPreview(preview, run) ? preview : null;
           const labels = { ...toolbarLabels(), copy: t('copy'), copied: t('copied'), collapseAria: t('collapseDiff'), collapse: t('collapseDiff'), expandAria: n => `${t('expandDiff')} (${n})`, expand: n => `${t('expandDiff')} (${n})` };
           return h('details', { className: 'sla-section', onToggle: e => { if (e.target === e.currentTarget) setExpanded(e.currentTarget.open); } },
-            h('summary', null, t('changes'), data && h('span', { className: 'sla-file-count' }, ` · ${data.files.length} ${t('files')}`)),
+            h('summary', null, resultLabel(run, 'changes'), data && h('span', { className: 'sla-file-count' }, ` · ${data.files.length} ${resultLabel(run, 'files')}`)),
             expanded && h(React.Fragment, null,
-              h('p', { className: 'sla-muted' }, t('changesHint')),
+              h('p', { className: 'sla-muted' }, resultLabel(run, 'changesHint')),
               failure ? h('div', { role: 'alert' }, h('p', null, failure), h('button', { type: 'button', onClick: () => setAttempt(attempt + 1) }, t('retry'))) : !data ? h('p', { role: 'status' }, t('loadingChanges')) : data.files.length ? data.files.map(file => h('details', { className: 'sla-file', key: file.path, open: data.files.length === 1 },
                 h('summary', null, file.path, h('span', { className: 'sla-file-kind' }, t(file.kind))),
-                h('div', { className: 'sla-file-body' }, file.omitted ? h('p', null, t(file.omitted)) : h(DiffBlock, { diffs: [{ path: file.path, oldText: file.oldText, newText: file.newText }], labels, maxLines: 18 })))) : h('p', null, t('noChanges')),
+                h('div', { className: 'sla-file-body' }, file.omitted ? h('p', null, t(file.omitted)) : h(DiffBlock, { diffs: [{ path: file.path, oldText: file.oldText, newText: file.newText }], labels, maxLines: 18 })))) : h('p', null, data.unsupported ? t('artifactUnsupported') : resultLabel(run, 'noChanges')),
               h(Original, { text: run.best?.diff, label: 'rawPatch', code: true })));
         }
         ctx.effect(() => ctx.sidebarRightTabs.register({ id: tabKind, kind: tabKind, title: () => t('title') }));
@@ -206,10 +209,11 @@ function factory(require) {
               h('h2', null, view.trial ? `${t('result')} · ${t('candidate')} #${view.trial.number}` : t('title')),
               h(Original, { text: run.goal, label: 'goal' }),
               !run.adopted && h('div', { 'aria-live': 'polite' }, h(Prose, { text: run.message })),
-              run.adopted && h('p', null, t('adoptedSummary')),
+              run.adopted && h('p', null, resultLabel(run, 'adoptedSummary')),
+              run.delivery && h(Original, { text: JSON.stringify(run.delivery, null, 2), label: 'delivery', code: true }),
               h(Decision, { run }),
               !run.adopted && h(React.Fragment, null,
-                !moving(run) && h('p', { className: 'sla-next' }, view.ready ? t('ready') : view.trial && !view.approved ? t('reviewNow') : t('continueHint')),
+                !moving(run) && h('p', { className: 'sla-next' }, view.ready ? resultLabel(run, 'ready') : view.trial && !view.approved ? t('reviewNow') : t('continueHint')),
                 h('div', { className: 'sla-actions' },
                   moving(run) ? button('pause', 'pause', run.status === 'pausing' || run.status === 'stopping') : !run.adoptionPending && button('resume', 'resume', false, !view.trial),
                   moving(run) && button('stop', 'stop', run.status === 'stopping'),
@@ -218,6 +222,7 @@ function factory(require) {
               !run.adopted && run.settings && h(Settings, { key: run.id, run, busy, act }),
               view.evaluation && h('details', { className: 'sla-section' }, h('summary', null, t(view.checks.status === 'passed' ? 'verified' : view.checks.status === 'failed' ? 'failedCheck' : 'unknownCheck'), view.checks.total > 0 ? ` · ${view.checks.passed}/${view.checks.total} ${t('groups')}` : ''), h(Evaluation, { result: view.evaluation, run })),
               view.trial && h(Changes, { key: run.id, run, sessionId }),
+              run.frontier?.length > 1 && h('details', { className: 'sla-section' }, h('summary', null, t('frontier')), h('p', { className: 'sla-muted' }, t('frontierHint')), ...run.frontier.map(candidate => h('p', { key: candidate.artifactId }, `#${candidate.trial} · ${value(candidate)}`))),
               h('details', { className: 'sla-section' }, h('summary', null, t('method'), ` · ${t('revision')} ${run.criteriaVersion ?? run.revision}`),
                 h('div', { className: 'sla-method-title' }, h(Prose, { text: run.criteria?.title ?? t('pending') })),
                 run.criteria?.unit && h('div', { className: 'sla-measurement' }, h('strong', null, t('measurement')), h(Prose, { text: run.criteria.unit })),
@@ -245,7 +250,7 @@ function factory(require) {
                   ...(run.assessments ?? []).filter(a => a.trial === trial.number && a !== assessment).map(a => h(Original, { key: a.criteriaVersion, label: 'previous', text: `**${t('revision')} ${a.criteriaVersion}**\n\n${a.evaluation.summary}` })),
                   trial.changes?.length > 0 && h('p', { className: 'sla-muted' }, trial.changes.join('、'))); })),
               h('details', { className: 'sla-section' }, h('summary', null, t('evidence')), h('p', { className: 'sla-path' }, run.root)),
-              !run.adopted && h('p', { className: 'sla-muted sla-section' }, run.settings ? `${run.settings.maxTrials} ${t('trials')} · ${run.settings.maxMinutes} min · ${run.settings.directions} ${t('directions')} × ${run.settings.localTrials}` : t('allowance'), ' · ', t('unchanged'))));
+              !run.adopted && h('p', { className: 'sla-muted sla-section' }, run.settings ? `${run.settings.maxTrials} ${t('trials')} · ${run.settings.maxMinutes} min · ${run.settings.directions} ${t('directions')} × ${run.settings.localTrials}` : t('allowance'), ' · ', resultLabel(run, 'unchanged'))));
         }
         ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({ name: 'conversation.session.header.actions', id: 'sla', order: 30, locale: 'sla' }, Header));
         ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({ name: 'sidebar.right.pane.tab', key: tabKind, locale: 'sla' }, Panel));

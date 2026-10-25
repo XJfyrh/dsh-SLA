@@ -141,7 +141,7 @@ async function verify(ctx) {
       }), last);
     };
     const schema = { type: 'object', properties: { ok: { type: 'boolean' } }, required: ['ok'], additionalProperties: false };
-    const invoke = (role, signal = AbortSignal.timeout(60000)) => ctx.sla.invoke({ parent: parent.agent, role, cwd, prompt: 'Exercise the final submission step.', schema, signal, onStarted });
+    const invoke = (role, signal = AbortSignal.timeout(60000)) => ctx.sla.invoke({ parent: parent.agent, role, cwd, prompt: 'Exercise the final submission step.', ...(role === 'worker' ? {} : { schema }), signal, onStarted });
     fillWork(tool('write', { file_path: '.sla/last-work.txt', content: 'written in step 24' }));
     adapter.queue.push({ finalTools: ['structured_output'], response: tool('structured_output', { ok: true }) });
     assert.deepEqual(await invoke('scout'), { ok: true });
@@ -182,7 +182,7 @@ async function verify(ctx) {
     assert.equal(adapter.queue.length, 0);
     assert.equal(ctx.sla.calls.size, 0);
     assert.equal(ctx.sla.researchOwners.size, 0);
-    assert.deepEqual(ctx.sla.tasks.list().map(task => task.id).sort(), ['code-bugfix', 'code-performance']);
+    assert.deepEqual(ctx.sla.tasks.list().map(task => task.id).sort(), ['code-bugfix', 'code-performance', 'retrieval-parameters']);
     const external = { ...performanceTask, review: undefined, id: 'host-extension-probe', name: 'Host extension probe' };
     const plugin = { name: 'sla-extension-probe', inject: ['sla'], apply(scope) { scope.effect(() => scope.sla.registerTask(external)); } };
     const fiber = ctx.plugin(plugin); await fiber;

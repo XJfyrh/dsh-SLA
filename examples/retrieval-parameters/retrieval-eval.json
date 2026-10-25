@@ -1,0 +1,13 @@
+{
+  "documents": [
+    { "id": "a-notes", "title": "Meeting notes", "text": "cache eviction cache eviction database migration database migration request timeout request timeout" },
+    { "id": "cache", "title": "Cache eviction", "text": "Use the least recently used entry when capacity is reached." },
+    { "id": "migration", "title": "Database migration", "text": "Apply a versioned schema change inside a transaction." },
+    { "id": "timeout", "title": "Request timeout", "text": "Cancel outstanding work after its deadline." }
+  ],
+  "queries": [
+    { "text": "cache eviction", "relevant": ["cache"] },
+    { "text": "database migration", "relevant": ["migration"] },
+    { "text": "request timeout", "relevant": ["timeout"] }
+  ]
+}

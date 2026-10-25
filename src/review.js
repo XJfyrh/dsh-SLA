@@ -2,8 +2,10 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { snapshot, inventory, copyEvaluation, changedFiles, candidateDiff } from './workspace.js';
-import { compare } from './task-registry.js';
+import { rerank } from './sla-strategy.js';
 import { reviewed } from './research-state.js';
+import { candidateFrom, publishCriteria } from './kernel.js';
+import { fileArtifact } from './file-artifacts.js';
 
 export async function reviewCandidate(engine, run, parent, signal, task, phase) {
   if (!task.review) return;
@@ -53,7 +55,7 @@ export async function reviewCandidate(engine, run, parent, signal, task, phase) 
     }
     if (!added.length) throw new Error('审查没有生成可执行的补充检查');
     const candidates = [{ trial: 0, dir: run.baselineDir, files: run.sourceFiles },
-      ...run.trials.filter(t => t.revision === run.revision && t.valid && t.changes?.length).map(t => ({ trial: t.number, dir: t.dir, direction: t.direction, files: t.files }))];
+      ...run.trials.filter(t => t.revision === run.revision && (t.eligibility?.retain ?? t.valid) && t.changes?.length).map(t => ({ trial: t.number, dir: t.dir, direction: t.direction, files: t.files }))];
     if (run.best.trial && !candidates.some(c => c.trial === run.best.trial)) candidates.push({ trial: run.best.trial, dir: run.best.dir, files: await inventory(run.best.dir) });
     run.pendingReview = { id, revision: run.revision, criteriaVersion: run.criteriaVersion + 1,
       evaluationDir: proposedDir, evaluationFiles: proposedFiles,
@@ -76,23 +78,35 @@ export async function finishReview(engine, run, parent, signal, task) {
   const pending = run.pendingReview;
   if (!pending) return;
   if (pending.revision !== run.revision) throw new Error('待发布评价的目标版本不一致');
-  run.stage = 'review'; run.message = '正在用新增检查复验初始项目与各方向候选';
+  run.stage = 'review'; run.message = pending.kind === 'migration' ? '正在独立重测历史候选，建立可接续的观测身份' : '正在用新增检查复验初始项目与各方向候选';
   await engine.save(run);
   try {
+  // Old pending transactions have measured values but no separate observation
+  // identity. Preserve them as history, then re-evaluate instead of inventing it.
+  if (pending.results.some(r => !r.observationId)) {
+    pending.legacyResults = pending.results; pending.results = [];
+  }
+  if (pending.legacyResults && !(run.legacyEvaluations ?? []).some(entry => entry.transactionId === pending.id)) {
+    (run.legacyEvaluations ??= []).push({ transactionId: pending.id, revision: pending.revision, criteriaVersion: pending.criteriaVersion,
+      reason: '历史部分测量缺少独立观测身份，保留原值并重新执行', results: structuredClone(pending.legacyResults) });
+    await engine.save(run);
+  }
   for (const candidate of pending.candidates) {
     signal.throwIfAborted();
     if (candidate.files && changedFiles(candidate.files, await inventory(candidate.dir)).length) throw new Error('待复验候选内容已改变，未发布评价');
+    candidate.artifactId ??= (await fileArtifact(run, candidate.dir, candidate.trial)).id;
     if (pending.results.some(r => r.trial === candidate.trial)) continue;
-    const evaluation = await engine.evaluate(run, candidate.dir, parent, signal, run.criteria, pending);
+    const measured = await engine.evaluate(run, candidate.dir, parent, signal, run.criteria, pending);
+    const evaluation = measured.evaluation;
     if (candidate.trial === 0) {
       if (evaluation.supplementaryChecks?.some(c => !c.passed)) throw new Error('新增保留行为检查未通过原始项目，不能据此认定候选回归');
       await task.validateBaseline(structuredClone(evaluation), structuredClone(run.criteria));
     }
-    pending.results.push({ ...candidate, evaluation });
+    pending.results.push({ ...candidate, ...measured });
     await engine.save(run);
   }
   } catch (error) {
-    if (!signal.aborted) {
+    if (!signal.aborted && pending.kind !== 'migration') {
       const record = run.reviews.find(r => r.id === pending.id);
       record.status = 'inconclusive'; record.error = String(error.message ?? error);
       record.failedProposal = pending;
@@ -102,34 +116,24 @@ export async function finishReview(engine, run, parent, signal, task) {
     throw error;
   }
   signal.throwIfAborted();
-  const baseline = pending.results.find(r => r.trial === 0).evaluation;
-  let best = { ...baseline, evaluation: baseline, trial: 0, dir: run.baselineDir, criteriaVersion: pending.criteriaVersion };
-  const local = new Map();
-  for (const result of pending.results.filter(r => r.trial > 0 && r.evaluation.valid)) {
-    const candidate = { ...result.evaluation, evaluation: result.evaluation, trial: result.trial, dir: result.dir, criteriaVersion: pending.criteriaVersion };
-    if (compare(task, result.evaluation, best.evaluation, run.criteria) === 'better') best = candidate;
-    const prior = local.get(result.direction);
-    if (!prior || compare(task, result.evaluation, prior.evaluation, run.criteria) === 'better') local.set(result.direction, candidate);
-  }
+  const base = pending.results.find(r => r.trial === 0);
+  const baseline = candidateFrom(base, { trial: 0, dir: run.baselineDir, criteriaVersion: pending.criteriaVersion });
+  const { best, local, frontier } = rerank(task, run.criteria, baseline, pending.results.filter(r => r.trial > 0).map(result => ({
+    candidate: candidateFrom(result, { trial: result.trial, dir: result.dir, criteriaVersion: pending.criteriaVersion }), lane: result.direction,
+  })));
   if (best.trial) best.diff = await candidateDiff(run.baselineDir, best.dir);
   await writeFile(path.join(run.root, 'best.patch'), best.diff ?? '');
   const record = run.reviews.find(r => r.id === pending.id);
-  const target = pending.results.find(r => r.trial === record.targetTrial);
-  record.status = target?.evaluation.supplementaryChecks?.some(c => !c.passed) ? 'confirmed-regression' : 'accepted';
-  if (record.status === 'confirmed-regression') delete run.stopReason;
-  record.publishedVersion = pending.criteriaVersion;
-  if (!run.assessments.some(a => a.trial === 0 && a.criteriaVersion === run.criteriaVersion)) run.assessments.push({ trial: 0, criteriaVersion: run.criteriaVersion, revision: run.revision, evaluation: run.baseline });
-  run.assessments.push(...pending.results.map(r => ({ trial: r.trial, direction: r.direction, revision: run.revision, criteriaVersion: pending.criteriaVersion, evaluation: r.evaluation })));
-  run.criteriaVersion = pending.criteriaVersion;
-  run.evaluationDir = pending.evaluationDir; run.evaluationFiles = pending.evaluationFiles; run.checks = pending.checks;
-  run.baseline = baseline; run.best = best; run.baselineReviewed = run.revision;
-  for (const direction of run.directions.filter(d => d.revision === run.revision)) {
-    direction.best = local.get(direction.id) ?? null;
-    direction.seed = structuredClone(best);
+  if (record) {
+    const target = pending.results.find(r => r.trial === record.targetTrial);
+    record.status = target?.evaluation.supplementaryChecks?.some(c => !c.passed) ? 'confirmed-regression' : 'accepted';
+    if (record.status === 'confirmed-regression') delete run.stopReason;
+    record.publishedVersion = pending.criteriaVersion;
   }
-  for (const epoch of run.epochs) if (epoch.status === 'running') epoch.status = 'superseded';
-  run.reviewedBest = record.phase === 'candidate' && best.trial === record.targetTrial
+  publishCriteria(run, pending, { baseline: base, best, local, frontier });
+  run.evaluationDir = pending.evaluationDir; run.evaluationFiles = pending.evaluationFiles; run.checks = pending.checks;
+  if (pending.kind !== 'migration') run.baselineReviewed = run.revision;
+  run.reviewedBest = record?.phase === 'candidate' && best.trial === record.targetTrial
     ? { trial: best.trial, criteriaVersion: run.criteriaVersion, revision: run.revision, task: run.task, files: record.targetFiles } : null;
-  run.pendingReview = null;
   await engine.save(run);
 }

@@ -79,6 +79,57 @@ test('pause/reopen continues the saved assignment without replaying finished loc
   assert.equal(r.trials[1].status, 'inconclusive'); assert.equal(r.trials[2].direction, 'alternative');
 });
 
+test('changed sealed parent cannot silently become the input to a later worker or advisor', async () => {
+  for (const localTrials of [1, 2]) {
+    const f = await fixture({ maxTrials: 1, localTrials, plans: [['fast']], results: [{ score: 90, behavior: 'correct' }] });
+    await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
+    const run = f.engine.get(parent.id), calls = f.calls.length;
+    await write(run.best.dir, { score: 10, behavior: 'correct' });
+    await f.engine.action(parent, { action: 'resume' }); await settle(f.engine);
+    const resumed = f.engine.get(parent.id);
+    assert.equal(resumed.status, 'blocked'); assert.match(resumed.message, /候选内容已改变/);
+    assert.equal(resumed.best.score, 90); assert.equal(f.calls.length, calls);
+  }
+});
+
+test('format 3 candidates are independently remeasured before frontier and search migrate', async () => {
+  const f = await fixture({ maxTrials: 1, localTrials: 1, plans: [['fast']], results: [{ score: 90, behavior: 'correct' }, { score: 95, behavior: 'correct' }] });
+  await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
+  const legacy = f.engine.get(parent.id); legacy.formatVersion = 3;
+  for (const key of ['artifacts', 'observations', 'decisions', 'frontier', 'baselineArtifactId', 'baselineObservationId']) delete legacy[key];
+  for (const candidate of [legacy.best, ...legacy.directions.flatMap(d => [d.best, d.seed]).filter(Boolean), ...legacy.trials]) {
+    for (const key of ['artifactId', 'observationId', 'parentArtifactId', 'selection', 'eligibility']) delete candidate[key];
+  }
+  await f.store.put(parent.id, legacy); await f.engine.dispose();
+  const reopened = new ExplorationEngine(f.config); await reopened.recover();
+  assert.equal(reopened.get(parent.id).observations.length, 0);
+  await reopened.action(parent, { action: 'resume' }); await settle(reopened);
+  const run = reopened.get(parent.id);
+  assert.equal(run.status, 'completed', run.message); assert.equal(run.best.score, 90);
+  assert.equal(run.criteriaVersion, 2); assert.equal(run.trials[0].evaluation.score, 90);
+  assert.equal(run.assessments.find(a => a.trial === 1).evaluation.score, 90);
+  assert.deepEqual(run.frontier.map(c => c.trial), [1]);
+  assert.ok(run.best.observationId); assert.equal(run.trials[1].parentArtifactId, run.best.artifactId);
+});
+
+test('legacy pending evaluation values survive a successful publication as historical evidence', async () => {
+  const f = await fixture({ maxTrials: 1, plans: [['fast']], results: [{ score: 90, behavior: 'correct' }] });
+  await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
+  const run = f.engine.get(parent.id), trial = run.trials[0];
+  const historical = { trial: 0, dir: run.baselineDir, evaluation: { valid: true, score: 100, summary: 'historical partial evaluation' } };
+  run.reviews.push({ id: 'legacy-review', phase: 'candidate', targetTrial: 1, targetFiles: trial.files, status: 'checking', revision: 1, criteriaVersion: 1 });
+  run.pendingReview = { id: 'legacy-review', revision: 1, criteriaVersion: 2, evaluationDir: run.evaluationDir, evaluationFiles: run.evaluationFiles, checks: [],
+    candidates: [{ trial: 0, dir: run.baselineDir, files: run.sourceFiles }, { trial: 1, dir: trial.dir, files: trial.files, direction: trial.direction }], results: [historical] };
+  await f.store.put(parent.id, run); await f.engine.dispose();
+  const reopened = new ExplorationEngine(f.config); await reopened.recover();
+  await reopened.action(parent, { action: 'review' }); await settle(reopened);
+  const migrated = reopened.get(parent.id);
+  assert.equal(migrated.status, 'completed', migrated.message); assert.equal(migrated.pendingReview, null);
+  assert.equal(migrated.criteriaVersion, 2); assert.deepEqual(migrated.legacyEvaluations[0].results, [historical]);
+  assert.equal(migrated.legacyEvaluations[0].transactionId, 'legacy-review');
+  assert.notEqual(migrated.assessments.find(a => a.trial === 0 && a.criteriaVersion === 2).evaluation.summary, historical.evaluation.summary);
+});
+
 test('grouped evidence retains old negative evidence and separates execution failures', () => {
   const run = { revision: 1, criteriaVersion: 1, directions: [], trials: Array.from({ length: 14 }, (_, i) => ({ number: i+1, revision: 1, direction: i ? 'other' : 'old-method', hypothesis: i ? 'new' : 'negative mechanism', status: i ? 'inconclusive' : 'no-improvement', summary: i ? 'runtime missing' : 'measured worse' })) };
   const evidence = advisorEvidence(run);
@@ -110,6 +161,43 @@ test('failed workers expose observed work without promoting unevaluated changes'
   assert.match(nextPlanning, /max-tokens after writing/);
   assert.match(nextPlanning, /"changedFiles":\["value.json"\]/);
   assert.match(nextPlanning, /"startCandidate":\{"trial":0/);
+});
+
+test('a quiescent interrupted invocation can produce a separately evaluated retained artifact', async () => {
+  const f = await fixture({ maxTrials: 1, plans: [['fast']], invoke: async args => {
+    if (args.role !== 'worker') return;
+    await write(args.cwd, { score: 70, behavior: 'correct' });
+    throw Object.assign(new Error('output interrupted after managed execution stopped'), { quiescent: true });
+  } });
+  await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
+  const run = f.engine.get(parent.id), trial = run.trials[0];
+  assert.equal(run.status, 'completed', run.message); assert.equal(run.best.score, 70);
+  assert.equal(trial.status, 'kept'); assert.equal(trial.pendingEvaluation, false);
+  assert.equal(trial.executionFailure.quiescent, true); assert.equal(trial.failures[0].phase, 'worker');
+  const call = run.invocations.find(i => i.id === trial.invocationIds[0]);
+  assert.equal(call.status, 'failed'); assert.match(call.error, /output interrupted/);
+  assert.equal(run.observations.find(o => o.id === trial.observationId).artifactId, trial.artifactId);
+  await f.engine.action(parent, { action: 'adopt' }); assert.equal((await read(f.cwd)).score, 70);
+});
+
+test('pause preserves a quiescent sealed artifact without evaluating until explicit resume', async () => {
+  let entered, workers = 0; const waiting = new Promise(resolve => { entered = resolve; });
+  const f = await fixture({ maxTrials: 1, plans: [['fast']], task: { complete: result => result.score < 100 }, invoke: async args => {
+    if (args.role !== 'worker') return;
+    workers++; await write(args.cwd, { score: 70, behavior: 'correct' }); entered();
+    await new Promise((_, reject) => args.signal.addEventListener('abort', () => reject(Object.assign(new Error('cancelled and drained'), { quiescent: true })), { once: true }));
+  } });
+  await f.engine.action(parent, { action: 'start', text: 'improve' }); await waiting;
+  await f.engine.action(parent, { action: 'pause' }); await settle(f.engine);
+  const paused = f.engine.get(parent.id);
+  assert.equal(paused.trials[0].pendingEvaluation, true); assert.equal(paused.trials[0].valid, undefined);
+  assert.equal(paused.best.trial, 0); assert.equal(paused.observations.length, 1);
+  await f.engine.dispose(); const reopened = new ExplorationEngine(f.config); await reopened.recover();
+  await reopened.action(parent, { action: 'resume' }); await settle(reopened);
+  const resumed = reopened.get(parent.id);
+  assert.equal(resumed.status, 'completed', resumed.message); assert.equal(resumed.best.score, 70);
+  assert.equal(resumed.attempts, 1); assert.equal(workers, 1);
+  assert.equal(resumed.invocations.find(i => i.role === 'worker').status, 'interrupted');
 });
 
 test('evaluation failure keeps worker report separate from an unmeasured result', async () => {
