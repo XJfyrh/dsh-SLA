@@ -190,6 +190,7 @@ export class NativeWorkflow {
     } catch (error) {
       run.deliveryError = String(error.message ?? error);
       run.message = '交付中断：' + run.deliveryError;
+      await this.engine.save(run);
       try { await this.recover(run); }
       catch (recoveryError) { run.message += '；核对失败：' + String(recoveryError.message ?? recoveryError); }
       await this.engine.save(run);

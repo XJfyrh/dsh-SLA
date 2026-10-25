@@ -1,5 +1,23 @@
 # 验收记录
 
+## 0.4.0 维护审计（2026-10-25，基线 b8e911e）
+
+删除与保留的逐项依据见[维护审计](maintenance-audit.md)。清除重构遗留转发器、无用测试导入及 UI 重复默认值；修正测试隔离指导与过时文案。修复原生工作流交付失败未在恢复前持久化错误的缺陷，并纠正被封存检查抢先拒绝的 Git 忽略文件冲突测试。
+
+| 检查 | 本次结果 | 原始证据（`artifacts/maintenance-audit-20261025/`） |
+| --- | --- | --- |
+| 完整回归 | 基线 107；最终 **109 通过、0 失败、0 跳过**，未删除整项测试 | `baseline-test.txt`、`final-test.txt` |
+| 原实现故障 | 恢复等待期间缺少持久 deliveryError；新增回归在旧实现失败，修复后读回 store/report 并重开通过 | `core/delivery-regression-red.txt`、`core/core-tests-green.txt` |
+| 测试独立价值 | 旧冲突测试放过移除目标保护的突变；修正后拒绝该突变，独立封存用例继续通过 | `tests/old-collision-mutant.txt`、`tests/new-collision-mutant.txt`、`tests/collision-and-seal-current.txt` |
+| 语法、类型、客户端 | 39 个 JS 文件、公开工作流类型示例、生成客户端和 diff 空白检查通过 | `final-check.txt`、`final-types.txt`、`final-build.txt` |
+| Host 恢复与 UI | 旧 settings 和格式 3 缺少字段均由 Host 补齐；23 个组件场景源码及生成客户端可见树与基线一致 | `settings-recovery.json`、`ui-before.json`、`ui-after.json`、`ui-client.json` |
+| 真实 DSH Host | 0.2.1-rc.2 / Node 24.19.0；参数工作流 4 次固定响应（含展示回执），Worker/Reviewer 2 次固定响应，两探针通过 | `host-workflow.json`、`host-presentation.json` |
+| 注释中的运行指引 | 原 Node 隔离模式 2/2 通过，关闭隔离 1/2 失败，证明不能称为等价执行 | `comments/isolation-default.txt`、`comments/isolation-none.txt` |
+
+运行命令为 README 的 `npm test`、`npm run check`、`npm run check:types`、`npm run build:client`；证据目录另有可复跑的故障/突变/组件探针、逐文件注释清单与 `task.tsv` 决策日志。独立复核确认 UI 默认值迁移由 Host 承担，旧持久化兼容及有效测试仍保留。
+
+真实 Host 使用独立 `sla-maintenance-20261025` profile 和 3091 端口，验证后停止并卸载本次链接。没有调用外部模型、重跑长程实验或验收浏览器布局；正式 `sla-dev` 服务未重启。这些检查证明本次维护改动和协议路径，不代表新增模型搜索收益。
+
 ## 0.4.0 探索内核、默认 SLA 策略与领域工作流（2026-10-25）
 
 本版把领域行为从运行时迁出：内核保存尝试、调用、制品、观测和决定的身份；默认 SLA 策略负责 Epoch、分支接续和选择；领域工作流负责准备、评价、比较、证据解释和交付。代码性能、缺陷修复继续使用原代码工作流，新增检索参数工作流证明非文件制品能够使用同一内核与策略。接口与使用方法见[核心规则](core.md)和[扩展开发](extensions.md)。

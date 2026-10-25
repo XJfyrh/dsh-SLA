@@ -10,7 +10,7 @@ import { performanceTask, parseEvaluation } from '../extensions/performance.js';
 import { bugfixTask } from '../extensions/bugfix.js';
 import { TaskRegistry } from '../src/task-registry.js';
 import { z } from 'zod';
-import { inventory, snapshot, adopt } from '../src/workspace.js';
+import { inventory, snapshot } from '../src/workspace.js';
 const exec = promisify(execFile);
 const parent = { id: 'session-test' };
 async function fixture(options = {}) {
@@ -86,16 +86,26 @@ test('frozen evaluation helper tampering blocks adoption', async () => {
   await assert.rejects(f.engine.action(parent, { action: 'adopt' }), /固定评价依据校验失败/);
 });
 test('adoption never overwrites an existing Git-ignored file', async () => {
-  const f = await fixture();
+  const f = await fixture({ invoke: async args => {
+    if (args.role === 'worker') await writeFile(path.join(args.cwd, 'local.json'), 'candidate data');
+  } });
   await exec('git', ['init', f.cwd]);
   await writeFile(path.join(f.cwd, '.gitignore'), 'local.json\n');
   await writeFile(path.join(f.cwd, 'local.json'), 'user data');
   await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
-  await writeFile(path.join(f.engine.get(parent.id).best.dir, 'local.json'), 'candidate data');
-  // The sealed artifact now rejects this mutation before target-path checks.
-  // Workspace tests independently exercise ignored target-file protection.
-  await assert.rejects(f.engine.action(parent, { action: 'adopt' }), /已封存候选内容已改变/);
+  const run = f.engine.get(parent.id);
+  assert.ok(run.artifacts.find(artifact => artifact.id === run.best.artifactId).payload.files['local.json']);
+  await assert.rejects(f.engine.action(parent, { action: 'adopt' }), /未纳入快照的文件 local.json/);
   assert.equal(await readFile(path.join(f.cwd, 'local.json'), 'utf8'), 'user data');
+  assert.equal(f.engine.get(parent.id).adopted, false);
+});
+test('post-seal file additions are rejected before adoption', async () => {
+  const f = await fixture();
+  await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
+  await writeFile(path.join(f.engine.get(parent.id).best.dir, 'unsealed.txt'), 'unsealed data');
+  await assert.rejects(f.engine.action(parent, { action: 'adopt' }), /已封存候选内容已改变/);
+  assert.equal(JSON.parse(await readFile(path.join(f.cwd, 'candidate.json'))).score, 100);
+  await assert.rejects(readFile(path.join(f.cwd, 'unsealed.txt')), { code: 'ENOENT' });
 });
 test('recovery reconciles applied files and holds ambiguous partial adoption', async () => {
   const f = await fixture(); await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);

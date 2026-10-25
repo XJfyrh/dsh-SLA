@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readdir } from 'node:fs/promises';
+import { mkdtemp, mkdir, readdir, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { ExplorationEngine } from '../src/engine.js';
@@ -174,6 +174,34 @@ test('delivery failure reconciles absent and committed side effects, and holds u
     const reopened = new ExplorationEngine(f.config); await reopened.recover();
     assert.equal(reopened.get(parent.id).adoptionPending, outcome === 'unknown');
   }
+});
+
+test('delivery failure is durable before reconciliation and survives reopening while recovery is interrupted', async () => {
+  let entered, release, recoveries = 0;
+  const waiting = new Promise(resolve => { entered = resolve; });
+  const blocked = new Promise(resolve => { release = resolve; });
+  const f = await fixture({ workflow: {
+    deliver: async () => { throw new Error('delivery failed before reconciliation'); },
+    recoverDelivery: async () => {
+      if (++recoveries === 1) { entered(); await blocked; }
+      return { status: 'unknown', reason: 'delivery needs inspection' };
+    },
+  } });
+  await f.engine.action(parent, { action: 'start', text: 'parameters' }); await settle(f.engine);
+  const pending = assert.rejects(f.engine.action(parent, { action: 'adopt' }), /delivery failed before reconciliation/);
+  await waiting;
+  try {
+    const saved = f.store.get(parent.id);
+    const report = JSON.parse(await readFile(path.join(saved.root, 'report.json'), 'utf8'));
+    const reopened = new ExplorationEngine(f.config); await reopened.recover();
+    for (const record of [saved, report, reopened.get(parent.id)]) {
+      assert.equal(record.adoptionPending, true);
+      assert.equal(record.adopted, false);
+      assert.equal(record.deliveryError, 'delivery failed before reconciliation');
+    }
+    await assert.rejects(reopened.action(parent, { action: 'adopt' }), /delivery needs inspection/);
+    await reopened.dispose();
+  } finally { release(); await pending; await f.engine.dispose(); }
 });
 
 test('native criteria publication resumes pending observations and does not republish the same criteria on workflow reentry', async () => {

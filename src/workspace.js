@@ -28,7 +28,7 @@ export async function inventory(root) {
       for (const entry of await readdir(dir, { withFileTypes: true })) {
         const rel = prefix + entry.name;
         if (!safe(rel)) continue;
-        if (entry.isSymbolicLink()) throw new Error(`首版不复制符号链接：${rel}`);
+        if (entry.isSymbolicLink()) throw new Error(`项目快照不复制符号链接：${rel}`);
         if (entry.isDirectory()) await walk(path.join(dir, entry.name), rel + '/');
         else if (entry.isFile()) names.push(rel);
         if (names.length > 15000) throw new Error('项目超过 15000 个文件，请缩小到一个子项目。');
@@ -43,10 +43,10 @@ export async function inventory(root) {
     if (!file.startsWith(root + path.sep)) throw new Error('项目路径越界');
     let stat;
     try { stat = await lstat(file); } catch (e) { if (e.code === 'ENOENT') continue; throw e; }
-    if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`首版只接受普通文件：${name}`);
+    if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`项目快照只接受普通文件：${name}`);
     if (await realpath(file) !== file) throw new Error(`项目包含链接路径：${name}`);
     bytes += stat.size;
-    if (bytes > 100 * 1024 * 1024 || Object.keys(files).length >= 15000) throw new Error('快照超过首版的 100 MiB / 15000 文件上限，请选择子项目。');
+    if (bytes > 100 * 1024 * 1024 || Object.keys(files).length >= 15000) throw new Error('快照超过 100 MiB / 15000 文件上限，请选择子项目。');
     files[name] = digest(await readFile(file));
   }
   return files;

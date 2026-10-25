@@ -169,7 +169,6 @@ export class ExplorationRuntime {
     await this.selectWorkflow(this, run, parent, signal);
     return this.workflow(run).execute(run, parent, signal);
   }
-  async evaluate(...args) { return this.workflow(args[0]).evaluate(...args); }
   async dispose() {
     this.closing = true;
     this.lifecycle.abort(new Error('插件关闭'));
