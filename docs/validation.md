@@ -26,6 +26,8 @@
 
 Host 证据归档为 `artifacts/refactor/host-researcher/verification.json`、`host-presentation/verification.json`、`host-workflow/verification.json`。上述响应由测试适配器提供，没有外部模型推理调用；真实 Host 和实际评测器证明接入与状态规则，不证明模型自主选择质量或长程搜索收益。
 
+实现提交 `fe2476f` 已在本地快进合入 `main`，`sla-dev` 重新链接主目录并启动正式 Web 3080。插件详情显示 **0.4.0、5 个组件全部运行**。重启后的参数会话保留候选 #1、评价版本 1、交付状态及 JSON 差异；旧性能会话仍显示已采用 #3 / v4 / 2 ms，旧缺陷会话仍显示已采用 #1 / v3 / 修复通过。此次查看未新增推理或重复采用。界面树和截图为 `artifacts/refactor/web-0.4.0-*`；正式 profile 未挂载验证脚本。
+
 复跑普通检查使用 README 的四条开发命令。真实 Host 检查可在独立 Web profile 中通过临时 patch 插入 `scripts/verify-researcher.mjs`、`scripts/verify-presentation.mjs` 或 `scripts/verify-workflow.mjs`；脚本自动写出 JSON 验证结果。检索探针会创建带“固定响应集成验证”标题的本地验收会话，便于 Web 查看。正式 profile 不挂载这些验证脚本。
 
 本版未实现并行 Worker、进程读/网络隔离或任意前沿候选的手动交付；没有新增日志导出系统或 Token 账本。下方历史长程对照保留原结果，本次协议重构未重新证明其搜索效果。
