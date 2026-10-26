@@ -125,7 +125,21 @@ export async function verifyEvaluation(root, files) {
   for (const name of Object.keys(files)) if (!seen.has(name)) throw new Error('固定评价依据文件缺失：' + name);
 }
 
+async function adoptionRoot(root) {
+  // Accept alternate spellings (including Windows short paths) without following linked ancestors.
+  let dir = path.resolve(root);
+  for (;;) {
+    const stat = await lstat(dir);
+    if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error('目标根目录包含链接或已改变');
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return realpath(root);
+}
+
 export async function adopt(run, authorize = async () => {}, expectedCandidateFiles) {
+  run = { ...run, cwd: await adoptionRoot(run.cwd) };
   const before = run.sourceFiles;
   const after = await inventory(run.best.dir);
   if (expectedCandidateFiles && changedFiles(expectedCandidateFiles, after).length) throw new Error('复验后候选内容已改变，未采用');
@@ -217,10 +231,12 @@ export async function recoverAdoption(run) {
   if (journal.state === 'rolled-back') { run.adoptionPending = false; return; }
   const matches = async expected => {
     if (!expected) return false;
+    let cwd;
+    try { cwd = await adoptionRoot(run.cwd); } catch { return false; }
     for (const name of journal.files) {
       let hash;
       try {
-        const file = path.join(run.cwd, name);
+        const file = path.join(cwd, name);
         if (await realpath(file) !== file) return false;
         hash = digest(await readFile(file));
       } catch (e) { if (e.code !== 'ENOENT') return false; }

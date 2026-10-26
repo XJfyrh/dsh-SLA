@@ -20,6 +20,28 @@ async function adoptionFixture(t) {
   return { root, cwd, sourceFiles, baselineDir, best: { dir: candidate }, adopted: false };
 }
 
+test('adoption and recovery accept an equivalent noncanonical root spelling', async t => {
+  const run = await adoptionFixture(t);
+  run.cwd += path.sep + '.';
+  await adopt(run);
+  assert.equal(await readFile(path.join(run.cwd, 'a.txt'), 'utf8'), 'candidate-a');
+  await recoverAdoption(run);
+  assert.equal(run.adopted, true);
+  assert.equal(run.adoptionPending, false);
+});
+
+test('adoption rejects a linked ancestor before requesting a write', async t => {
+  const run = await adoptionFixture(t);
+  const original = run.cwd;
+  const alias = path.join(run.root, 'linked-parent');
+  await symlink(run.root, alias, process.platform === 'win32' ? 'junction' : 'dir');
+  run.cwd = path.join(alias, 'project');
+  let calls = 0;
+  await assert.rejects(adopt(run, async () => { calls++; }), /链接/);
+  assert.equal(calls, 0);
+  assert.equal(await readFile(path.join(original, 'a.txt'), 'utf8'), 'original-a');
+});
+
 test('adoption preserves source edits made during initial authorization', async t => {
   const run = await adoptionFixture(t);
   let calls = 0;
