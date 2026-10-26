@@ -5,7 +5,7 @@
 ## 加入正在使用的 Harness
 
 ```sh
-dsh plugin --profile web add dsh-sla@0.4.0
+dsh plugin --profile web add dsh-sla@0.4.1
 dsh web
 ```
 
@@ -24,7 +24,7 @@ dsh --profile sla-demo --from-default-profile web
 退出后安装插件，再启动：
 
 ```sh
-dsh plugin --profile sla-demo add dsh-sla@0.4.0
+dsh plugin --profile sla-demo add dsh-sla@0.4.1
 dsh --profile sla-demo
 ```
 
@@ -35,8 +35,8 @@ dsh --profile sla-demo
 在一个空目录中下载并解压 npm 包：
 
 ```sh
-npm pack dsh-sla@0.4.0
-tar -xf dsh-sla-0.4.0.tgz
+npm pack dsh-sla@0.4.1
+tar -xf dsh-sla-0.4.1.tgz
 ```
 
 示例在 `package/examples/`。复制其中一个项目到自己的工作目录，再通过 Harness 添加为工作区。

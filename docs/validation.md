@@ -1,6 +1,6 @@
 # TypeScript 迁移验收
 
-2026-10-26，本地迁移；本次没有 npm 发布。环境为 Windows、Node.js 24.19.0、DeepSeek Harness 0.2.1-rc.2 Web。
+2026-10-26，0.4.1 的 TypeScript 迁移验收。环境为 Windows、Node.js 24.19.0、DeepSeek Harness 0.2.1-rc.2 Web。
 
 | 检查 | 结果 |
 | --- | --- |
