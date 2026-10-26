@@ -8,7 +8,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
-import { inventory, changedFiles, verifyEvaluation } from '../src/workspace.js';
+import { inventory, changedFiles, verifyEvaluation } from '../dist/src/workspace.js';
 
 export const inject = ['sla', 'agents', 'agentPresets', 'sessionQuery', 'sessionPersistence', 'sessions', 'attachments'];
 

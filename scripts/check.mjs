@@ -1,12 +1,33 @@
-import { readdir } from 'node:fs/promises';
-import { spawnSync } from 'node:child_process';
-const files = ['client.js'];
-for (const dir of ['src', 'extensions', 'scripts']) {
-  for (const entry of await readdir(dir, { withFileTypes: true })) if (entry.isFile() && /\.(m?js)$/.test(entry.name)) files.push(dir + '/' + entry.name);
+import assert from 'node:assert/strict';
+import { readdir, readFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import path from 'node:path';
+
+const compiled = new Set();
+for (const config of ['tsconfig.json', 'tsconfig.client.json']) {
+  const effective = JSON.parse(execFileSync(process.execPath, ['node_modules/typescript/bin/tsc', '--showConfig', '-p', config], { encoding: 'utf8', windowsHide: true }));
+  assert.equal(effective.compilerOptions.strict, true, config);
+  assert.equal(effective.compilerOptions.noEmitOnError, true, config);
+  assert.ok(!effective.compilerOptions.skipLibCheck, config);
+  const files = execFileSync(process.execPath, ['node_modules/typescript/bin/tsc', '--listFilesOnly', '-p', config], { encoding: 'utf8', windowsHide: true });
+  for (const file of files.trim().split(/\r?\n/)) compiled.add(path.resolve(file));
 }
-for (const file of files) {
-  const result = spawnSync(process.execPath, ['--check', file], { stdio: 'inherit', windowsHide: true });
-  if (result.error) throw result.error;
-  if (result.status !== 0) process.exit(result.status ?? 1);
+let count = 0;
+for (const directory of ['src', 'extensions']) {
+  for (const entry of await readdir(directory, { recursive: true })) {
+    assert.ok(!/\.(m?js|d\.ts)$/.test(entry), `Implementation or handwritten declaration outside TS build: ${entry}`);
+    if (!entry.endsWith('.ts')) continue;
+    const file = path.join(directory, entry);
+    assert.ok(compiled.has(path.resolve(file)), `Implementation missing from strict programs: ${file}`);
+    const source = await readFile(file, 'utf8');
+    assert.ok(!/@ts-(ignore|nocheck)\b/.test(source), `Suppressed implementation: ${file}`);
+    count++;
+  }
 }
-console.log(`Syntax checked ${files.length} JavaScript files`);
+for (const directory of ['dist', 'scripts']) {
+  for (const entry of await readdir(directory, { recursive: true })) {
+    if (!/\.m?js$/.test(entry)) continue;
+    execFileSync(process.execPath, ['--check', path.join(directory, entry)], { stdio: 'inherit', windowsHide: true });
+  }
+}
+console.log(`All ${count} TS implementations enter strict checking; emitted JS and scripts parse successfully`);

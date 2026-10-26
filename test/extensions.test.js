@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { WorkflowRegistry, validateEvaluation, compare } from '../src/workflow-registry.js';
-import { performanceWorkflow } from '../extensions/performance.js';
-import { bugfixWorkflow } from '../extensions/bugfix.js';
-import { parseResult } from '../src/evaluation.js';
+import { WorkflowRegistry, validateEvaluation, compare } from '../dist/src/workflow-registry.js';
+import { performanceWorkflow } from '../dist/extensions/performance.js';
+import { bugfixWorkflow } from '../dist/extensions/bugfix.js';
+import { parseResult } from '../dist/src/evaluation.js';
 
 test('registry rejects duplicates, binds exact version, disposes one registration only', () => {
   const tasks = new WorkflowRegistry();

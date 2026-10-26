@@ -13,6 +13,5 @@ jobs:
       - run: npm test
       - run: npm run check
       - run: npm run check:types
-      - run: npm run build:client
-      - run: git diff --exit-code -- client.js
       - run: npm run check:package
+      - run: git diff --exit-code

@@ -7,16 +7,17 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { LlmAdapter } from '@deepseek-ai/dsh-llm';
-import { inventory } from '../src/workspace.js';
+import { inventory } from '../dist/src/workspace.js';
 
 export const inject = ['sla', 'agents', 'agentPresets', 'llm', 'tools', 'workspaceRegistry', 'sessionTitle'];
 const output = fileURLToPath(new URL('../artifacts/refactor/host-workflow/', import.meta.url));
+const uiPendingDelivery = process.env.SLA_VERIFY_UI === '1';
 class ScriptedAdapter extends LlmAdapter {
   requests = [];
   async resolveModel(provider, model) { return { provider, id: model, name: model }; }
   async *stream(options) {
     if (this.requests.length === 3) {
-      const text = '固定响应集成验证已完成：参数候选经过独立评价，结果已交付。此记录验证插件接入，不代表真实任务的搜索收益。';
+      const text = '固定响应集成验证已完成：参数候选经过独立评价，可在探索面板查看当前结果和交付记录。此记录验证插件接入，不代表真实任务的搜索收益。';
       this.requests.push({ fields: [], tools: options.tools.map(t => t.name), purpose: 'visible verification receipt' });
       yield { type: 'block-start', index: 0, blockType: 'text' };
       yield { type: 'text-delta', index: 0, text };
@@ -65,15 +66,18 @@ async function verify(ctx) {
     assert.equal(run.invocations.length, 3); assert.ok(run.invocations.every(i => i.status === 'completed' && i.childId));
     assert.equal(run.invocations[2].attemptId, run.trials[0].id);
     const preview = JSON.parse(await ctx.sla.changes(id)); assert.equal(preview.kind, 'artifact');
-    await ctx.sla.action(parent.agent, JSON.stringify({ action: 'adopt' }));
-    const delivered = engine.get(id); assert.equal(delivered.adopted, true);
-    const contents = JSON.parse(await readFile(delivered.delivery.path, 'utf8'));
-    assert.equal(contents.artifactId, run.best.artifactId); assert.deepEqual(contents.parameters, { topK: 1, titleWeight: 4 });
+    if (!uiPendingDelivery) {
+      await ctx.sla.action(parent.agent, JSON.stringify({ action: 'adopt' }));
+      const delivered = engine.get(id); assert.equal(delivered.adopted, true);
+      const contents = JSON.parse(await readFile(delivered.delivery.path, 'utf8'));
+      assert.equal(contents.artifactId, run.best.artifactId); assert.deepEqual(contents.parameters, { topK: 1, titleWeight: 4 });
+    }
+    const delivered = engine.get(id);
     assert.deepEqual(await inventory(cwd), before); assert.equal(ctx.sla.calls.size, 0);
     parent.agent.send({ id: randomUUID(), role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: '显示这次固定响应工作流集成验证的交付记录。' }] }, 'next-turn', true);
     await parent.agent.whenIdle();
     assert.equal(adapter.requests.length, 4);
-    return { passed: true, model: 'fixed responses; no external API', requests: adapter.requests, sessionId: id, runId: run.id,
+    return { passed: true, uiPendingDelivery, model: 'fixed responses; no external API', requests: adapter.requests, sessionId: id, runId: run.id,
       records: { artifacts: run.artifacts.length, observations: delivered.observations.length, decisions: run.decisions.length },
       initial: run.baseline.display, selected: run.best.display, delivery: delivered.delivery, projectUnchanged: true, privateToolsDisposed: true };
   } catch (error) {

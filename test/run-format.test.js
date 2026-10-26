@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { initializeResearch, validateRun } from '../src/research-state.js';
-import { WorkflowRegistry } from '../src/workflow-registry.js';
-import { performanceWorkflow } from '../extensions/performance.js';
+import { initializeResearch, validateRun } from '../dist/src/research-state.js';
+import { WorkflowRegistry } from '../dist/src/workflow-registry.js';
+import { performanceWorkflow } from '../dist/extensions/performance.js';
+import { researchRun } from './fixtures.js';
 
 test('current format is initialized once and rejects missing facts instead of manufacturing them on recovery', () => {
-  const run = { id: 'run', sessionId: 'session', root: 'root', revision: 1, trials: [], invocations: [] };
-  initializeResearch(run);
+  const run = researchRun();
   const saved = structuredClone(run);
   validateRun(run);
   assert.deepEqual(run, saved);

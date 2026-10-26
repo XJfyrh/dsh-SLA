@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { inventory } from '../src/workspace.js';
-import { changePreview } from '../src/change-preview.js';
-import { evaluationView, currentEvaluation, matchesPreview, candidateBrief, checkPresentation, decisionView } from '../src/presentation.js';
+import { inventory } from '../dist/src/workspace.js';
+import { changePreview } from '../dist/src/change-preview.js';
+import { evaluationView, currentEvaluation, matchesPreview, candidateBrief, checkPresentation, decisionView } from '../dist/src/presentation.js';
 
 const decisionRun = (evaluation = { valid: true, score: 2 }) => ({
   revision: 1, criteriaVersion: 2, status: 'completed', reviewSupported: true,

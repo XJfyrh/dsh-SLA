@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRunStore, latestRunTurn, ownsRun, collapseAdoptedPanel } from '../src/client-state.js';
+import { createRunStore, latestRunTurn, ownsRun, collapseAdoptedPanel } from '../dist/src/client-state.js';
 
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 const flush = () => new Promise(resolve => setImmediate(resolve));

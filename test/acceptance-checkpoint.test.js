@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
-import { inventory } from '../src/workspace.js';
+import { inventory } from '../dist/src/workspace.js';
 import { verifyCheckpoint, verifyInvocationChain, summarizeNativeArchive } from '../scripts/verify-long-horizon.mjs';
 
 test('acceptance continuation rejects altered baseline, retained candidate and frozen evaluation', async () => {

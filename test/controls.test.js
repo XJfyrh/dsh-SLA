@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { controlSummary } from '../src/research-state.js';
+import { controlSummary } from '../dist/src/research-state.js';
 
 test('main-chat controls retain current failures and budgets without replaying the full history', () => {
   const run = { id: 'run', status: 'blocked', stage: 'review', goal: 'fix a bug', message: 'Review dependency missing', revision: 1, criteriaVersion: 3,

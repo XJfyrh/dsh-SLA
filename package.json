@@ -8,23 +8,39 @@
     "dsh": "0.2.1-rc.2"
   },
   "exports": {
-    ".": "./src/host.js",
-    "./tools": "./src/tools.js",
-    "./performance": "./extensions/performance.js",
-    "./bugfix": "./extensions/bugfix.js",
-    "./parameters": "./extensions/parameters.js",
-    "./workflow": {
-      "types": "./src/workflow.d.ts",
-      "default": "./src/workflow.js"
+    ".": {
+      "types": "./dist/src/host.d.ts",
+      "default": "./dist/src/host.js"
     },
-    "./client": "./client.js",
+    "./tools": {
+      "types": "./dist/src/tools.d.ts",
+      "default": "./dist/src/tools.js"
+    },
+    "./performance": {
+      "types": "./dist/extensions/performance.d.ts",
+      "default": "./dist/extensions/performance.js"
+    },
+    "./bugfix": {
+      "types": "./dist/extensions/bugfix.d.ts",
+      "default": "./dist/extensions/bugfix.js"
+    },
+    "./parameters": {
+      "types": "./dist/extensions/parameters.d.ts",
+      "default": "./dist/extensions/parameters.js"
+    },
+    "./workflow": {
+      "types": "./dist/src/workflow.d.ts",
+      "default": "./dist/src/workflow.js"
+    },
+    "./client": {
+      "types": "./dist/src/client-factory.d.ts",
+      "default": "./dist/client.js"
+    },
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg"
   },
   "files": [
-    "src",
-    "extensions",
-    "client.js",
+    "dist",
     "cordis.patch.yml",
     "locale",
     "icon.svg",
@@ -33,28 +49,48 @@
     "examples"
   ],
   "scripts": {
-    "test": "node --test test/*.test.js examples/*/*.test.js",
+    "build": "node scripts/build.mjs",
+    "build:client": "tsc --noEmit -p tsconfig.client.json && node scripts/build-client.mjs",
+    "check:types": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.client.json && tsc -p tsconfig.consumer.json && tsc -p tsconfig.client-consumer.json",
     "check": "node scripts/check.mjs",
-    "check:types": "tsc --noEmit --strict --module NodeNext --target ES2022 test/workflow-types.ts",
-    "build:client": "node scripts/build-client.mjs",
-    "check:package": "node scripts/check-package.mjs"
+    "pretest": "npm run build",
+    "test": "node --test test/*.test.js examples/*/*.test.js",
+    "check:package": "node scripts/check-package.mjs",
+    "prepack": "npm run build"
   },
   "dependencies": {
-    "zod": "4.6.7"
+    "zod": "4.4.3"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "4.0.5",
+    "@deepseek-ai/dsh-agent": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-api-remotes": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-locale": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-chat": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-conversation": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-primitives": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-renderer": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-session": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-sidebar-right": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-slots": "0.2.1-rc.2",
     "@deepseek-ai/dsh-llm": "0.2.1-rc.2",
     "@deepseek-ai/dsh-persona": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-sandbox-policy": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-session": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-shell": "0.2.1-rc.2",
     "@deepseek-ai/dsh-skill-filesystem": "0.2.1-rc.2",
     "@deepseek-ai/dsh-storage-domain": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-subagent": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-system-prompt": "0.2.1-rc.2",
     "@deepseek-ai/dsh-tool-bash": "0.2.1-rc.2",
     "@deepseek-ai/dsh-tool-fs": "0.2.1-rc.2",
     "@deepseek-ai/dsh-tool-fs-search": "0.2.1-rc.2",
     "@deepseek-ai/dsh-tool-pwsh": "0.2.1-rc.2",
     "@deepseek-ai/dsh-tool-skill": "0.2.1-rc.2",
     "@deepseek-ai/dsh-tools": "0.2.1-rc.2",
-    "@deepseek-ai/dsh-typert-protocol": "0.2.1-rc.2"
+    "@deepseek-ai/dsh-typert-protocol": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-typert-registry": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-working-directory": "0.2.1-rc.2"
   },
   "dsh": {
     "bundle": {
@@ -93,10 +129,28 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.5",
+    "@deepseek-ai/dsh": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-agent": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-api-remotes": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-locale": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-store": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-chat": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-conversation": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-dockkit": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-primitives": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-renderer": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-session": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-sidebar-right": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-slots": "0.2.1-rc.2",
     "@deepseek-ai/dsh-llm": "0.2.1-rc.2",
     "@deepseek-ai/dsh-persona": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-sandbox-policy": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-session": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-shell": "0.2.1-rc.2",
     "@deepseek-ai/dsh-skill-filesystem": "0.2.1-rc.2",
     "@deepseek-ai/dsh-storage-domain": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-subagent": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-system-prompt": "0.2.1-rc.2",
     "@deepseek-ai/dsh-tool-bash": "0.2.1-rc.2",
     "@deepseek-ai/dsh-tool-fs": "0.2.1-rc.2",
     "@deepseek-ai/dsh-tool-fs-search": "0.2.1-rc.2",
@@ -104,6 +158,17 @@
     "@deepseek-ai/dsh-tool-skill": "0.2.1-rc.2",
     "@deepseek-ai/dsh-tools": "0.2.1-rc.2",
     "@deepseek-ai/dsh-typert-protocol": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-typert-registry": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-working-directory": "0.2.1-rc.2",
+    "@types/mdast": "4.0.4",
+    "@types/node": "24.19.2",
+    "@types/react": "18.3.31",
+    "@types/react-dom": "18.3.7",
+    "esbuild": "0.28.2",
+    "lexical": "0.49.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-test-renderer": "18.3.1",
     "typescript": "5.9.3"
   }
 }

@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import { mkdtemp, cp, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { parameterWorkflow } from '../extensions/parameters.js';
-import { evaluateRetrieval, validateDataset } from '../extensions/retrieval-evaluator.js';
-import { ExplorationEngine } from '../src/engine.js';
-import { WorkflowRegistry } from '../src/workflow-registry.js';
-import { changePreview } from '../src/change-preview.js';
-import { inventory } from '../src/workspace.js';
+import { parameterWorkflow } from '../dist/extensions/parameters.js';
+import { evaluateRetrieval, validateDataset } from '../dist/extensions/retrieval-evaluator.js';
+import { ExplorationEngine } from '../dist/src/engine.js';
+import { WorkflowRegistry } from '../dist/src/workflow-registry.js';
+import { changePreview } from '../dist/src/change-preview.js';
+import { inventory } from '../dist/src/workspace.js';
 
 test('bundled retrieval workflow evaluates JSON candidates, previews content and delivers an exact parameter package', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'sla-parameters-')), cwd = path.join(root, 'project');

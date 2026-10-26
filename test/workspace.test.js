@@ -5,7 +5,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { adopt, recoverAdoption, snapshot } from '../src/workspace.js';
+import { adopt, recoverAdoption, snapshot, inventory, copyEvaluation, verifyEvaluation } from '../dist/src/workspace.js';
+import { filesSchema } from '../dist/src/data.js';
+import { filePayload } from '../dist/src/file-artifacts.js';
 
 async function adoptionFixture(t) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'sla-adoption-'));
@@ -19,6 +21,46 @@ async function adoptionFixture(t) {
   for (const name of ['a', 'b']) await writeFile(path.join(candidate, name + '.txt'), 'candidate-' + name);
   return { root, cwd, sourceFiles, baselineDir, best: { dir: candidate }, adopted: false };
 }
+
+test('special filenames survive snapshots, frozen checks, adoption and journal recovery', async t => {
+  const run = await adoptionFixture(t);
+  for (const name of ['__proto__', 'constructor']) await writeFile(path.join(run.cwd, name), 'original');
+  run.sourceFiles = await snapshot(run.cwd, run.baselineDir);
+  await snapshot(run.cwd, run.best.dir);
+  assert.equal(Object.hasOwn(run.sourceFiles, '__proto__'), true);
+  assert.equal(await readFile(path.join(run.baselineDir, '__proto__'), 'utf8'), 'original');
+  assert.deepEqual(filesSchema.parse(JSON.parse(JSON.stringify(run.sourceFiles))), run.sourceFiles);
+  assert.deepEqual(filePayload({ kind: 'files', payload: { directory: run.cwd, files: run.sourceFiles } }).files, run.sourceFiles);
+  await mkdir(path.join(run.cwd, '.sla'));
+  await writeFile(path.join(run.cwd, '.sla', '__proto__'), 'frozen check');
+  const frozen = await copyEvaluation(run.cwd, run.best.dir);
+  assert.equal(Object.hasOwn(frozen, '__proto__'), true);
+  await verifyEvaluation(run.best.dir, frozen);
+  await writeFile(path.join(run.best.dir, '__proto__'), 'candidate');
+  await rm(path.join(run.best.dir, 'constructor'));
+  await writeFile(path.join(run.best.dir, 'toString'), 'new file');
+  await adopt(run);
+  assert.equal(await readFile(path.join(run.cwd, '__proto__'), 'utf8'), 'candidate');
+  await assert.rejects(readFile(path.join(run.cwd, 'constructor')), { code: 'ENOENT' });
+  await recoverAdoption(run);
+  assert.equal(run.adopted, true); assert.equal(run.adoptionPending, false);
+  const journal = JSON.parse(await readFile(path.join(run.root, 'adoption.json'), 'utf8'));
+  assert.equal(Object.hasOwn(journal.before, '__proto__'), true);
+  assert.equal(Object.hasOwn(journal.after, '__proto__'), true);
+});
+
+test('a newly added prototype-named file rolls back and can be adopted on retry', async t => {
+  const run = await adoptionFixture(t);
+  await writeFile(path.join(run.best.dir, '__proto__'), 'candidate');
+  let calls = 0;
+  await assert.rejects(adopt(run, async () => { if (++calls === 3) throw new Error('interrupt'); }), /interrupt/);
+  assert.deepEqual(await inventory(run.cwd), run.sourceFiles);
+  await assert.rejects(readFile(path.join(run.cwd, '__proto__')), { code: 'ENOENT' });
+  await recoverAdoption(run); assert.equal(run.adoptionPending, false); assert.equal(run.adopted, false);
+  await adopt(run); await recoverAdoption(run);
+  assert.equal(run.adopted, true);
+  assert.equal(await readFile(path.join(run.cwd, '__proto__'), 'utf8'), 'candidate');
+});
 
 test('adoption and recovery accept an equivalent noncanonical root spelling', async t => {
   const run = await adoptionFixture(t);

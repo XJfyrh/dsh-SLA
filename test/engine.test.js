@@ -5,12 +5,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { ExplorationEngine } from '../src/engine.js';
-import { performanceWorkflow, parseEvaluation } from '../extensions/performance.js';
-import { bugfixWorkflow } from '../extensions/bugfix.js';
-import { WorkflowRegistry } from '../src/workflow-registry.js';
+import { ExplorationEngine } from '../dist/src/engine.js';
+import { performanceWorkflow, parseEvaluation } from '../dist/extensions/performance.js';
+import { bugfixWorkflow } from '../dist/extensions/bugfix.js';
+import { WorkflowRegistry } from '../dist/src/workflow-registry.js';
 import { z } from 'zod';
-import { inventory, snapshot } from '../src/workspace.js';
+import { inventory, snapshot } from '../dist/src/workspace.js';
 const exec = promisify(execFile);
 const parent = { id: 'session-test' };
 async function fixture(options = {}) {
@@ -127,7 +127,8 @@ test('recovery reconciles applied files and holds ambiguous partial adoption', a
 test('crash recovery retains elapsed budget and interrupted invocation identity', async () => {
   const f = await fixture();
   await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
-  await f.store.put(parent.id, { ...f.engine.get(parent.id), status: 'running', trials: [], invocations: [{ status: 'running', childId: 'old' }], elapsedMs: 100, timeLimitMs: 5000, activeSince: Date.now() - 2000 });
+  const saved = f.engine.get(parent.id);
+  await f.store.put(parent.id, { ...saved, status: 'running', trials: [], invocations: [{ ...saved.invocations[0], status: 'running', childId: 'old' }], elapsedMs: 100, timeLimitMs: 5000, activeSince: Date.now() - 2000 });
   await f.engine.recover(); const run = f.engine.get(parent.id);
   assert.ok(run.elapsedMs >= 2100 && run.elapsedMs <= 5000);
   assert.equal(run.activeSince, undefined);
@@ -210,7 +211,8 @@ test('retrying failed discovery freezes a fresh evaluator without stale helper f
 test('recovery marks unfinished work inconclusive without replaying it', async () => {
   const f = await fixture();
   await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
-  await f.store.put(parent.id, { ...f.engine.get(parent.id), status: 'running', trials: [{ status: 'running' }] });
+  const saved = f.engine.get(parent.id);
+  await f.store.put(parent.id, { ...saved, status: 'running', trials: [{ ...saved.trials[0], status: 'running' }] });
   const callsBeforeRecovery = f.calls.length;
   await f.engine.recover();
   assert.equal(f.store.get(parent.id).status, 'paused');

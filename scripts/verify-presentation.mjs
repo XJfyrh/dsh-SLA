@@ -7,9 +7,9 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import os from 'node:os';
 import { LlmAdapter } from '@deepseek-ai/dsh-llm';
-import { preservedBehaviorReview } from '../extensions/code-review.js';
-import { candidateBrief } from '../src/presentation.js';
-import { workerPrompt } from '../src/prompts.js';
+import { preservedBehaviorReview } from '../dist/extensions/code-review.js';
+import { candidateBrief } from '../dist/src/presentation.js';
+import { workerPrompt } from '../dist/src/prompts.js';
 
 export const inject = ['sla', 'agents', 'agentPresets', 'llm'];
 const output = fileURLToPath(new URL('../artifacts/decision-ui/host/', import.meta.url));

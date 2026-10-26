@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/client-factory.ts",
+    "src/client-state.ts",
+    "src/presentation.ts"
+  ],
+  "exclude": []
+}

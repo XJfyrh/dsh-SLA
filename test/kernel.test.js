@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { initializeResearch } from '../src/research-state.js';
-import { sealArtifact, observe, candidateFrom, publishCriteria } from '../src/kernel.js';
-import { rerank } from '../src/sla-strategy.js';
+import { initializeResearch } from '../dist/src/research-state.js';
+import { sealArtifact, observe, candidateFrom, publishCriteria } from '../dist/src/kernel.js';
+import { rerank } from '../dist/src/sla-strategy.js';
 
 function pendingFixture() {
   const run = { revision: 1, criteriaVersion: 1, task: { id: 'test', version: '1.0.0' }, trials: [{ number: 1, revision: 1 }], baseline: { valid: true, summary: 'before' } };

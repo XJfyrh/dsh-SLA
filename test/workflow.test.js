@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, readdir, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { ExplorationEngine } from '../src/engine.js';
-import { WorkflowRegistry } from '../src/workflow-registry.js';
-import { jsonArtifact, verifyJsonArtifact } from '../src/json-artifacts.js';
-import { artifactById, acceptSelection } from '../src/kernel.js';
+import { ExplorationEngine } from '../dist/src/engine.js';
+import { WorkflowRegistry } from '../dist/src/workflow-registry.js';
+import { jsonArtifact, verifyJsonArtifact } from '../dist/src/json-artifacts.js';
+import { artifactById, acceptSelection } from '../dist/src/kernel.js';
 
 const parent = { id: 'parameters' };
 const settle = async engine => { while (engine.active.size) await Promise.all([...engine.active.values()].map(x => x.promise)); };
@@ -104,6 +104,18 @@ test('new criteria produce new observations without rewriting historical assessm
   assert.equal(run.observations.filter(o => o.criteriaVersion === 2).length, 5);
   assert.throws(() => acceptSelection(run, run.trials[0], { ...run.trials[0].evaluation }, { local: true, global: true, eligibility: { retain: true, deliver: true } }), /版本已过期/);
   await assert.rejects(f.engine.action(parent, { action: 'adopt' }), /尚无/);
+});
+
+test('reentering unchanged criteria does not spend another evaluation or advance its version', async () => {
+  const criteria = { criterion: 'same evaluator', ready: true };
+  const f = await fixture({ workflow: { async run(ctx) {
+    await ctx.initialize({ criteria, artifact: jsonArtifact({ x: 100 }) });
+    await ctx.reviseCriteria(criteria);
+  } } });
+  await f.engine.action(parent, { action: 'start', text: 'parameters' }); await settle(f.engine);
+  const run = f.engine.get(parent.id);
+  assert.equal(run.status, 'completed', run.message);
+  assert.equal(run.criteriaVersion, 1); assert.equal(run.observations.length, 1);
 });
 
 test('read snapshots cannot mutate authoritative state and artifact tampering is rejected before delivery', async () => {
