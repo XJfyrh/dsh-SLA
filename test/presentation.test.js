@@ -104,6 +104,17 @@ test('preview reads actual added, deleted and modified files with relative Unico
   assert.deepEqual(await inventory(f.after), run.trials[0].files);
 });
 
+test('preview accepts equivalent Windows directory casing', { skip: process.platform !== 'win32' }, async () => {
+  const f = await fixture();
+  await writeFile(path.join(f.before, 'a.js'), 'before');
+  await writeFile(path.join(f.after, 'a.js'), 'after');
+  const run = await f.run();
+  run.baselineDir = run.baselineDir.toUpperCase();
+  run.best.dir = run.best.dir.toUpperCase();
+  const preview = await changePreview(run);
+  assert.deepEqual(preview.files, [{ path: 'a.js', kind: 'modified', oldText: 'before', newText: 'after' }]);
+});
+
 test('preview refuses altered snapshots and missing historical hashes', async () => {
   const f = await fixture();
   await writeFile(path.join(f.before, 'a.js'), 'before'); await writeFile(path.join(f.after, 'a.js'), 'after');

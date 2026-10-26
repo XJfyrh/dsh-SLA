@@ -1,7 +1,7 @@
 import { readFile, lstat, realpath } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { inventory, changedFiles } from './workspace.js';
+import { inventory, changedFiles, canonicalRoot } from './workspace.js';
 import { artifactById } from './kernel.js';
 import { verifyJsonArtifact } from './json-artifacts.js';
 
@@ -18,7 +18,8 @@ export async function changePreview(run) {
       ...(oldText.length + newText.length > 512 * 1024 ? { omitted: 'large' } : { oldText, newText }) }] };
   }
   if (!run?.best?.trial || !run.baselineDir || !run.best.dir) return { ...identity, files: [] };
-  const before = await inventory(run.baselineDir), after = await inventory(run.best.dir);
+  const beforeDir = await canonicalRoot(run.baselineDir), afterDir = await canonicalRoot(run.best.dir);
+  const before = await inventory(beforeDir), after = await inventory(afterDir);
   const expected = run.best.files ?? run.trials?.find(t => t.number === run.best.trial)?.files;
   if (!run.sourceFiles || !expected) throw new Error('记录缺少文件校验信息，请查看原始补丁。');
   if (changedFiles(run.sourceFiles, before).length || changedFiles(expected, after).length) throw new Error('快照内容已改变，不能将当前文件展示为已验证候选。请查看原始补丁。');
@@ -38,8 +39,8 @@ export async function changePreview(run) {
   }
   const files = [];
   for (const name of changedFiles(before, after)) {
-    const oldText = await text(run.baselineDir, name, before[name]);
-    const newText = await text(run.best.dir, name, after[name]);
+    const oldText = await text(beforeDir, name, before[name]);
+    const newText = await text(afterDir, name, after[name]);
     const omitted = oldText?.omitted ?? newText?.omitted;
     files.push({ path: name, kind: !before[name] ? 'added' : !after[name] ? 'deleted' : 'modified',
       ...(omitted ? { omitted } : { oldText, newText: newText ?? '' }) });

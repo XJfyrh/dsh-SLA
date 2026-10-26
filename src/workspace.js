@@ -125,7 +125,7 @@ export async function verifyEvaluation(root, files) {
   for (const name of Object.keys(files)) if (!seen.has(name)) throw new Error('固定评价依据文件缺失：' + name);
 }
 
-async function adoptionRoot(root) {
+export async function canonicalRoot(root) {
   // Accept alternate spellings (including Windows short paths) without following linked ancestors.
   let dir = path.resolve(root);
   for (;;) {
@@ -139,7 +139,7 @@ async function adoptionRoot(root) {
 }
 
 export async function adopt(run, authorize = async () => {}, expectedCandidateFiles) {
-  run = { ...run, cwd: await adoptionRoot(run.cwd) };
+  run = { ...run, cwd: await canonicalRoot(run.cwd) };
   const before = run.sourceFiles;
   const after = await inventory(run.best.dir);
   if (expectedCandidateFiles && changedFiles(expectedCandidateFiles, after).length) throw new Error('复验后候选内容已改变，未采用');
@@ -232,7 +232,7 @@ export async function recoverAdoption(run) {
   const matches = async expected => {
     if (!expected) return false;
     let cwd;
-    try { cwd = await adoptionRoot(run.cwd); } catch { return false; }
+    try { cwd = await canonicalRoot(run.cwd); } catch { return false; }
     for (const name of journal.files) {
       let hash;
       try {
