@@ -36,12 +36,15 @@ await writeFile(path.join(consumer, 'runtime.mjs'), `
 import assert from 'node:assert/strict';
 import { readFile, realpath, access } from 'node:fs/promises';
 import vm from 'node:vm';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+const consumerRoot = await realpath(process.cwd());
 const entries = ${JSON.stringify(Object.keys(manifest.exports).filter(key => key !== './client' && typeof manifest.exports[key] === 'object'))};
 for (const key of entries) {
   const specifier = key === '.' ? 'dsh-sla' : 'dsh-sla/' + key.slice(2);
   const resolved = await realpath(fileURLToPath(import.meta.resolve(specifier)));
-  assert.ok(resolved.startsWith(process.cwd()), resolved);
+  const relative = path.relative(consumerRoot, resolved);
+  assert.ok(!path.isAbsolute(relative) && relative !== '..' && !relative.startsWith('..' + path.sep), resolved);
   assert.ok(Object.keys(await import(specifier)).length, specifier);
 }
 const source = await readFile(new URL(import.meta.resolve('dsh-sla/client')), 'utf8');
