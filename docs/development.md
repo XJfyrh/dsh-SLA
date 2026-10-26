@@ -7,25 +7,52 @@ npm ci
 npm test
 npm run check
 npm run check:types
-npm run build:client
 npm run check:package
 ```
 
-测试使用固定响应与临时项目，覆盖候选接续、评价事务、权限、交付恢复和文件写入。公共类型从包导出路径导入并使用真实 DSH 类型检查。`client.js` 是生成物，源文件是 `src/client-factory.js`、`src/client-state.js` 和 `src/presentation.js`；生成后不应出现未提交差异。
+`npm test` 先构建，再测试 `dist/` 中的实际 JS。测试使用固定响应与临时项目，覆盖候选接续、评价事务、权限、交付恢复、文件写入与客户端渲染。性能优化、缺陷修复等任务输入保留原来的 JS。
+
+`npm run check:types` 严格检查 Host、客户端和扩展使用方正反例；`npm run check` 核对全部实现都进入严格检查，并检查产物语法。`npm run check:package` 生成 tarball，在系统临时目录仅安装生产依赖，加载每个公开运行入口，再安装固定的 DSH 开发类型依赖检查包内声明。结果和包写入 `artifacts/package/`，临时使用方目录记录在 `verification.json`。
+
+## 源码和构建
+
+`src/`、`extensions/` 中全部实现使用 TypeScript。`src/data.ts` 定义持久事实及运行时解析器；`src/contracts.ts` 定义工作流契约；`src/wire.ts` 定义 Host 与客户端通信契约。外部结果从 `unknown` 开始，在使用前校验。领域评价允许自有 JSON 字段，使用方需缩窄这些字段，核心不预设数值分数。
+
+```sh
+npm run build
+npm run build:client
+```
+
+完整构建先清理本仓库的 `dist/`，编译 Host 与客户端，生成 JS、`.d.ts`、JS source map 和 declaration map，再打包浏览器入口 `dist/client.js`。所有 map 内嵌源内容，安装包不需要源码目录即可调试。`build:client` 只严格检查和重建浏览器 bundle，适合界面开发；修改共享契约后运行完整构建。
+
+两个实现程序都启用 `strict`、`noEmitOnError`，不跳过依赖类型检查。固定 DSH 的 Host 与客户端对 Cordis `Context.sessions` 有不同增强，分别用 `tsconfig.json` 和 `tsconfig.client.json` 编译；共享模块不能引入另一侧的运行环境。`tsconfig.consumer.json` 和 `tsconfig.client-consumer.json` 分别从公开导出检查工作流与客户端使用方，未命中的错误断言也会使检查失败。
+
+`dist/` 不提交；公开声明全部由源码生成，不维护手写实现声明。DSH `Context.sla` 与 Typert namespace 增强位于源码契约中，由编译器一起输出。`package.json` 的导出统一指向 `dist/`；CI 在干净安装后运行上述检查，任何检查失败都会阻止通过。
+
+DSH 依赖固定为 `0.2.1-rc.2`，共享 API 同时声明为 peer 和开发依赖；Zod 固定为宿主 storage-domain 使用的 `4.4.3`。插件打包与安装遵循[固定版本官方指南](https://github.com/deepseek-ai/deepseek-harness/blob/687f282e8625c6b8d11ff58211a90524be2e4317/docs/user/develop/basic/publish.md)：tarball 自带运行产物，宿主安装不执行源码构建。升级 DSH 时同时核对 API、客户端 ModuleLoader、存储与 structured output 契约。
 
 ## 在 Harness 中开发
 
-先按[安装说明](install.md)创建一个开发 profile，再链接仓库：
+先构建，再按[安装说明](install.md)创建开发 profile 并链接仓库：
 
 ```sh
 dsh plugin --profile sla-demo add /absolute/path/to/dsh-SLA
 ```
 
-替换为仓库绝对路径，Windows 可使用 `E:/projects/dsh-SLA`。修改 Host 后重启；修改界面后执行 `npm run build:client` 并刷新。
+替换为仓库绝对路径，Windows 可使用 `E:/projects/dsh-SLA`。修改 Host 后重新构建并重启；修改界面后执行 `npm run build:client` 并刷新。Node 调试可设置 `NODE_OPTIONS=--enable-source-maps`，浏览器开发者工具可直接查看 bundle map 中的 TS。
 
 ## 真实 Host 验证
 
-使用独立 Web profile，安装待验收的 `.tgz`。以下脚本作为临时 `--patch` 插件挂载，每次单独运行；脚本提供固定模型响应，不请求外部模型：
+使用独立 `DSH_HOME` 和 Web profile，安装待验收的 `.tgz`。profile 本身不隔离全局存储。此次迁移不转换历史格式；不应将旧记录复制到验收存储中。以下 PowerShell 命令建立独立环境，最后一个命令启动服务：
+
+```powershell
+$env:DSH_HOME = Join-Path (Get-Location) 'artifacts/dsh-acceptance'
+dsh --profile sla-release-check --from-default-profile web --dump-config
+dsh plugin --profile sla-release-check add ./artifacts/package/dsh-sla-0.4.0.tgz
+dsh --profile sla-release-check --no-open --port 3092
+```
+
+`--from-default-profile` 只在首次创建使用。浏览器打开启动日志中的含 token 的 URL。以下脚本作为临时 `--patch` 插件挂载，每次单独运行；脚本提供固定模型响应，不请求外部模型：
 
 - `scripts/verify-workflow.mjs`：参数工作流，从注册到交付。
 - `scripts/verify-presentation.mjs`：Worker 与 Reviewer 的真实 structured_output 契约。
@@ -43,7 +70,9 @@ dsh plugin --profile sla-demo add /absolute/path/to/dsh-SLA
 dsh --profile sla-release-check --patch ./artifacts/verify.patch.yml --no-open --port 3092
 ```
 
-结果写入仓库 `artifacts/`。检查 JSON 的 passed 和具体断言，随后退出验证服务。正式 profile 不挂载验证插件。
+结果写入仓库 `artifacts/`。检查 JSON 的 passed 和具体断言，随后退出验证服务。设置 `SLA_VERIFY_UI=1` 时，参数探针保留未交付候选，供浏览器验证设置保存、内容预览和采用；该模式的报告不声称已验证交付，需另核对 UI 交付及其磁盘回执。正式 profile 不挂载验证插件。
+
+pnpm 会缓存同版本、同路径的 tarball 安装。反复验收本地包时，先按内容摘要复制成唯一文件名再安装，并核对安装目录与构建输出的哈希。
 
 `scripts/verify-long-horizon.mjs` 是可选真实模型实验工具，通过 `SLA_CAMPAIGN_INPUT` 读取目标、工作区、输出目录和额度；会消耗模型用量。它复用 DSH 原生会话导出，相关测试校验导出的根会话身份与检查点，未纳入 npm 安装包。
 
@@ -57,11 +86,11 @@ dsh --profile sla-release-check --patch ./artifacts/verify.patch.yml --no-open -
 
 ## 发布
 
-包内容由 package.json 的 files 白名单控制。只包含运行文件、必要说明与示例，测试、验证脚本、调研原稿和本机证据不进入包。
+包内容由 package.json 的 files 白名单控制：生成的 JS、声明和 map、Cordis patch、图标、语言文件、说明与示例。实现源码、测试、验证脚本、调研原稿和本机证据不进入包。`npm pack` 的 prepack 自动完成完整构建。
 
 ```sh
 npm pack --pack-destination artifacts
 npm publish ./artifacts/dsh-sla-0.4.0.tgz --access public --registry https://registry.npmjs.org
 ```
 
-发布前完成回归、Host tarball 安装和内容检查。发布后从 npm 重新下载，核对 integrity 并在独立 profile 安装；不能用 npm publish 的成功回执替代下载与安装验证。版本发布后不可原样覆盖。
+发布前完成回归、Host tarball 安装和内容检查。发布后从 npm 重新下载，核对 integrity 并在独立 profile 安装。版本发布后不可原样覆盖。

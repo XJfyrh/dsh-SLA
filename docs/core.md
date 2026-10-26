@@ -16,11 +16,14 @@ SLA 将运行状态保存在模型会话之外。每次角色调用创建新的 
 
 | 层 | 当前职责 | 源码 |
 | --- | --- | --- |
-| DSH 宿主适配 | 复用会话、工具、权限、存储、界面、用量和日志 | `src/host.js`、`src/researcher.js` |
-| 运行时 | 启停、调用、时间与尝试额度、持久化恢复 | `src/runtime.js` |
-| 探索内核 | 尝试身份、制品、观测、选择与评价版本 | `src/kernel.js` |
-| SLA 策略 | 多方向、局部候选、Epoch 接续和全局保留 | `src/sla-strategy.js` |
-| 领域工作流 | 准备、评价、审查、制品校验和交付 | `src/code-workflow.js`、`src/native-workflow.js`、`extensions/` |
+| DSH 宿主适配 | 复用会话、工具、权限、存储、界面、用量和日志 | `src/host.ts`、`src/researcher.ts` |
+| 运行时 | 启停、调用、时间与尝试额度、持久化恢复 | `src/runtime.ts` |
+| 探索内核 | 尝试身份、制品、观测、选择与评价版本 | `src/kernel.ts` |
+| SLA 策略 | 多方向、局部候选、Epoch 接续和全局保留 | `src/sla-strategy.ts` |
+| 领域工作流 | 准备、评价、审查、制品校验和交付 | `src/code-workflow.ts`、`src/native-workflow.ts`、`extensions/` |
+| 数据与扩展契约 | 事实 schema、公开工作流类型、Host/客户端远程签名 | `src/data.ts`、`src/contracts.ts`、`src/wire.ts` |
+
+实现均接受严格 TS 检查；JS、声明和 source map 从同一份源码构建。运行时仍校验模型结果、持久记录、远程输入和文件清单，静态类型不能证明这些外部数据有效。代码工作流与原生工作流通过种类区分，交付恢复通过 delivered/absent/unknown 区分，未确定的副作用继续保留未知状态。
 
 ## 一次探索
 

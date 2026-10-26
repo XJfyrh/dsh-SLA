@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-26",
+  "implementationRevision": "0e430af568ba951f8f7fa007c5ecb8d75af50406",
+  "publication": "local commits only",
+  "environment": {
+    "platform": "Windows",
+    "node": "24.19.0",
+    "dsh": "0.2.1-rc.2",
+    "installation": "content-addressed npm tarball in isolated DSH_HOME and Web profile"
+  },
+  "baseline": {
+    "passed": 111,
+    "failed": 0,
+    "skipped": 0
+  },
+  "regression": {
+    "passed": 120,
+    "failed": 0,
+    "skipped": 0
+  },
+  "strictTypes": {
+    "implementations": 37,
+    "host": true,
+    "client": true,
+    "generatedWorkflowConsumer": true,
+    "generatedClientConsumer": true,
+    "skipLibCheck": false
+  },
+  "packaging": {
+    "productionOnlyRuntimeImports": true,
+    "allExports": true,
+    "browserModuleLoader": true,
+    "embeddedSources": true,
+    "installedOutputFilesMatched": 150
+  },
+  "host": {
+    "workflow": {
+      "passed": true,
+      "fixedResponses": 4,
+      "projectUnchanged": true,
+      "records": {
+        "artifacts": 2,
+        "observations": 3,
+        "decisions": 1
+      },
+      "delivered": true
+    },
+    "presentation": {
+      "passed": true,
+      "fixedResponses": 2
+    },
+    "researcher": {
+      "passed": true,
+      "fixedResponses": 219,
+      "finalStepWritesDenied": true,
+      "nativeReadonlyAdoptionBlocked": true,
+      "pluginLifecycleVerified": true,
+      "privateToolsDisposed": true
+    }
+  },
+  "web": {
+    "passed": true,
+    "settingsSaved": true,
+    "attemptCountPreserved": true,
+    "adopted": true,
+    "receiptMatchesSealedArtifact": true,
+    "parameters": {
+      "titleWeight": 4,
+      "topK": 1
+    },
+    "sourceProjectUnchanged": true,
+    "statusAndCandidateVisible": true,
+    "artifactPreview": true,
+    "settingsFormsAfterPolling": 1,
+    "pageReloadPassed": true
+  },
+  "paidModelCalls": 0,
+  "notRun": [
+    "real-model long-horizon exploration",
+    "Linux",
+    "macOS",
+    "desktop distribution",
+    "npm publish"
+  ]
+}

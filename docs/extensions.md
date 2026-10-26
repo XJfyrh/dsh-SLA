@@ -6,9 +6,11 @@
 
 下面按复用代码流程和定义自有流程两种方式接入。工作流与持久状态的协作见[核心架构](core.md)。
 
-```js
+```ts
+import type { Context } from '@deepseek-ai/cordis';
+
 export const inject = ['sla'];
-export function apply(ctx) {
+export function apply(ctx: Context) {
   ctx.effect(() => ctx.sla.registerWorkflow(myWorkflow));
 }
 ```
@@ -19,7 +21,7 @@ export function apply(ctx) {
 
 `defineCodeWorkflow({id, version, name, description, prepare, evaluate, validateBaseline, compare, ...})` 复用文件调查、独立候选、审查、恢复和代码交付。
 
-完整实现：[性能](../extensions/performance.js)、[缺陷修复](../extensions/bugfix.js)。
+仓库完整源码为 `extensions/performance.ts` 和 `extensions/bugfix.ts`；发布包提供对应的 [性能 JS](../dist/extensions/performance.js) 与 [缺陷修复 JS](../dist/extensions/bugfix.js)。
 
 | 字段 | 契约 |
 | --- | --- |
@@ -30,7 +32,7 @@ export function apply(ctx) {
 | `complete(result, criteria)` | 可选完成判定 |
 | `qualify(result, criteria)` | 可选 `{retain, deliver}`；默认都取 valid，未通过结果不能交付 |
 | `projectEvidence(result)` | 可选领域摘要，JSON 且不超过 12000 字符 |
-| `review` | 可选独立检查能力：schema、prompt、evaluate；参见 `extensions/code-review.js` |
+| `review` | 可选独立检查能力：schema、prompt、evaluate；参见 `extensions/code-review.ts` |
 
 核心不要求数值或特定输出协议。可选 `parseResult` 读取命令最后一行 `SLA_RESULT <JSON>`；正常得到失败结论也应退出 0，非零退出、取消、超时、输出截断表示评价未完成。
 
@@ -38,7 +40,7 @@ export function apply(ctx) {
 
 ## 自定义制品和流程
 
-`defineWorkflow()` 接收 `run(ctx)`、`artifacts.verify`、`evaluate`、基线与比较能力，以及可选 `deliver / recoverDelivery`。完整实现是[检索参数工作流](../extensions/parameters.js)。它使用固定数据建立 JSON 基线，调用规划与参数角色，Host 评价后交付参数包。
+`defineWorkflow()` 接收 `run(ctx)`、`artifacts.verify`、`evaluate`、基线与比较能力，以及可选 `deliver / recoverDelivery`。完整实现为仓库 `extensions/parameters.ts`（[发布 JS](../dist/extensions/parameters.js)）。它使用固定数据建立 JSON 基线，调用规划与参数角色，Host 评价后交付参数包。
 
 | Context 操作 | 作用 |
 | --- | --- |
@@ -59,4 +61,14 @@ export function apply(ctx) {
 
 id/version 是探索的规则绑定，重复 id 拒绝注册；卸载会取消活动调用。改变评价语义、比较规则、交付条件或制品契约时提升工作流版本；现有探索不会自动改用另一个版本。
 
-项目方法资源使用 `.agents/skills/<name>/SKILL.md`，也可用 DSH `ctx.skills.register`。Skill 提供方法，不能替代实际检查。完整公共类型见 [workflow.d.ts](../src/workflow.d.ts)。
+项目方法资源使用 `.agents/skills/<name>/SKILL.md`，也可用 DSH `ctx.skills.register`。Skill 提供方法，不能替代实际检查。
+
+## TypeScript 扩展开发
+
+可编译的最小例子见 [counter.ts](../examples/extensions/counter.ts)。它使用 JSON 制品和固定评价器，不调用模型；仓库与包安装验收都会严格检查该例子。
+
+公开类型从 `dsh-sla/workflow` 导入。它们由 `src/workflow.ts`、`src/contracts.ts` 和 `src/data.ts` 生成，包中的 [workflow.d.ts](../dist/src/workflow.d.ts) 与实现同源。扩展项目使用 NodeNext、`strict: true` 和固定版本的真实 DSH 开发依赖，编译自己的 TS 后再作为普通 Cordis 插件安装；不要复制 DSH 的 Context、Agent 或工具 schema 声明。
+
+`ctx.invoke()` 返回 `unknown`，应使用运行时 schema 或类型守卫再读取。制品 payload、工作流状态、交付回执必须是 JSON。`Evaluation` 保留领域自有字段，例如 `score` 或 `recall`；比较器应检查字段类型，不能把所有扩展强制成同一种分数。`schema` 使用 DSH 的 `ObjectJsonSchema`，固定版本不支持的字段会直接报类型错误。输入长度等业务校验仍在 Host 侧执行。
+
+源码内包含正例和错误用法检查：无效工作流种类、工具组、比较结果、不完整交付回执、未经校验的模型结果以及不受支持的 DSH schema 字段均必须被拒绝。
