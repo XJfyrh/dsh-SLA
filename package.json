@@ -73,6 +73,14 @@
   },
   "license": "MIT",
   "author": "XJfyrh",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/XJfyrh/dsh-SLA.git"
+  },
+  "homepage": "https://github.com/XJfyrh/dsh-SLA#readme",
+  "bugs": {
+    "url": "https://github.com/XJfyrh/dsh-SLA/issues"
+  },
   "keywords": [
     "deepseek-harness",
     "dsh-plugin",

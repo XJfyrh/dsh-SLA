@@ -2,6 +2,10 @@
 
 统一公共入口是 `ctx.sla.registerWorkflow(workflow)`。安装、配置、生命周期与方法资源复用 DSH Cordis 插件和 Skill。类型与构造函数均从 `dsh-sla/workflow` 导入。
 
+![领域扩展的位置：性能优化、缺陷修复、检索参数与自定义工作流，共用 SLA 能力和 DSH 宿主](images/architecture.drawio.svg)
+
+下面按复用代码流程和定义自有流程两种方式接入。工作流与持久状态的协作见[核心架构](core.md)。
+
 ```js
 export const inject = ['sla'];
 export function apply(ctx) {

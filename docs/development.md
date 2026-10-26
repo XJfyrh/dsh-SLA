@@ -47,6 +47,14 @@ dsh --profile sla-release-check --patch ./artifacts/verify.patch.yml --no-open -
 
 `scripts/verify-long-horizon.mjs` 是可选真实模型实验工具，通过 `SLA_CAMPAIGN_INPUT` 读取目标、工作区、输出目录和额度；会消耗模型用量。它复用 DSH 原生会话导出，相关测试校验导出的根会话身份与检查点，未纳入 npm 安装包。
 
+## 维护文档配图
+
+配图按读者的问题组织：[产品概览](images/exploration-flow.drawio.svg)、[状态接续](images/state-lifecycle.drawio.svg)、[扩展架构](images/architecture.drawio.svg)、[候选演进](images/candidate-branches.drawio.svg)。同一张图在不同文档中引用同一文件。
+
+图内保留节点、关系和必要图例；完整说明放在正文。修改后按文档中的显示宽度检查文字与连线。
+
+`docs/images/*.drawio.svg` 内嵌 draw.io 源图，可以直接在 draw.io 中打开编辑。导出 SVG 时保留图表数据、关闭字体嵌入，再替换原文件。
+
 ## 发布
 
 包内容由 package.json 的 files 白名单控制。只包含运行文件、必要说明与示例，测试、验证脚本、调研原稿和本机证据不进入包。
