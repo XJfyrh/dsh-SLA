@@ -1,0 +1,97 @@
+{
+  "date": "2026-10-26",
+  "package": "dsh-sla@0.4.0",
+  "environment": {
+    "platform": "Windows",
+    "node": "24.19.0",
+    "dsh": "0.2.1-rc.2",
+    "installation": "npm tarball in a dedicated Web profile"
+  },
+  "regression": {
+    "tests": 108,
+    "passed": 108,
+    "failed": 0,
+    "skipped": 0
+  },
+  "hostWorkflow": {
+    "passed": true,
+    "model": "fixed responses; no external API",
+    "records": {
+      "artifacts": 2,
+      "observations": 3,
+      "decisions": 1
+    },
+    "initial": "召回 0.0% · 返回 1.0 条",
+    "selected": "召回 100.0% · 返回 1.0 条",
+    "projectUnchanged": true,
+    "privateToolsDisposed": true
+  },
+  "hostPresentation": {
+    "passed": true,
+    "requests": 2,
+    "model": "fixed responses; no external API",
+    "workerBrief": {
+      "change": "修正零值回退逻辑，保留合法的零输入。",
+      "unverified": "其它运行时尚未验证。"
+    },
+    "reviewer": {
+      "hasChecks": true,
+      "title": "边界外输入的返回行为",
+      "purpose": "保持上下界以外的输入仍返回相应边界。",
+      "summary": "提出独立的边界行为检查。"
+    },
+    "scope": "DSH output contract only; no candidate implementation or evaluation executed"
+  },
+  "hostResearcher": {
+    "passed": true,
+    "model": "scripted; no external API",
+    "requests": 219,
+    "tasks": [
+      {
+        "id": "code-performance",
+        "version": "1.1.0",
+        "name": "代码性能",
+        "description": "改善可运行代码的耗时、内存或其他可测量成本；保持正确行为。适用于明确的速度、资源或效率目标。"
+      },
+      {
+        "id": "code-bugfix",
+        "version": "1.1.0",
+        "name": "缺陷修复",
+        "description": "修复明确的错误、异常输出或失败用例。通过可复现缺陷和回归测试判断完成，不需要性能分数。"
+      },
+      {
+        "id": "retrieval-parameters",
+        "version": "1.0.0",
+        "name": "检索参数",
+        "description": "针对项目已有 retrieval-eval.json 中的英文词项检索评测集，优化 topK 和 titleWeight。复用固定评测器，交付参数 JSON 包，不修改源码。"
+      }
+    ],
+    "stepLimitReported": true,
+    "finalSubmissionVerified": true,
+    "finalStepWritesDenied": true,
+    "finalStepCancellationVerified": true,
+    "ptcParentVerified": true,
+    "nativeReadonlyAdoptionBlocked": true,
+    "pluginLifecycleVerified": true,
+    "skillLoaded": true,
+    "projectSkillLoaded": true,
+    "publicSlaPresets": [
+      "sla"
+    ],
+    "privateToolsDisposed": true
+  },
+  "runtimeDependencyAudit": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "pendingValidation": [
+    "Real-model long-horizon exploration",
+    "Linux",
+    "macOS",
+    "Desktop distributions"
+  ]
+}

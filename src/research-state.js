@@ -11,17 +11,17 @@ export function settings(value = {}, base = defaults) {
 
 export function initializeResearch(run, config = defaults) {
   initializeKernel(run);
-  run.settings ??= { ...config };
-  run.settings.maxStepsPerCall ??= 24;
-  run.settings.maxMinutesPerCall ??= 5;
-  run.tranche ??= { attempt: 0, elapsedMs: 0 };
-  run.directions ??= [];
-  run.epochs ??= [];
-  run.assessments ??= [];
-  run.reviews ??= [];
-  run.checks ??= [];
-  run.criteriaVersion ??= run.revision;
-  run.formatVersion = 4;
+  Object.assign(run, { formatVersion: 1, settings: { ...config }, tranche: { attempt: 0, elapsedMs: 0 },
+    directions: [], epochs: [], assessments: [], reviews: [], checks: [], criteriaVersion: run.revision });
+}
+
+export function validateRun(run) {
+  if (run.formatVersion !== 1 || !run.id || !run.sessionId || !run.root || !Number.isInteger(run.revision)) throw new Error('探索记录格式无效');
+  settings(run.settings);
+  if (!run.tranche || !run.settings || !Number.isInteger(run.criteriaVersion)) throw new Error('探索记录状态不完整');
+  for (const key of ['trials', 'invocations', 'artifacts', 'observations', 'decisions', 'frontier', 'directions', 'epochs', 'assessments', 'reviews', 'checks']) {
+    if (!Array.isArray(run[key])) throw new Error('探索记录缺少 ' + key);
+  }
 }
 
 const short = (text, n = 500) => String(text ?? '').slice(0, n);
@@ -50,7 +50,7 @@ function currentTrial(trial, run) {
   const assessment = run?.assessments?.filter(a => a.trial === trial.number && a.revision === run.revision && a.criteriaVersion === run.criteriaVersion).at(-1);
   if (assessment) return { ...trial, historicalStatus: trial.status, criteriaVersion: assessment.criteriaVersion, evaluation: assessment.evaluation,
     valid: assessment.evaluation.valid, status: assessment.evaluation.valid ? 'rechecked-valid' : 'invalid', summary: assessment.evaluation.summary, evidence: assessment.evaluation.evidence };
-  if (run && (trial.criteriaVersion ?? trial.revision) !== run.criteriaVersion) return { ...trial, historicalStatus: trial.status, status: 'not-rechecked', valid: undefined };
+  if (run && trial.criteriaVersion !== run.criteriaVersion) return { ...trial, historicalStatus: trial.status, status: 'not-rechecked', valid: undefined };
   return trial;
 }
 export function feedback(trial, run, project) {
@@ -81,7 +81,7 @@ export function advisorEvidence(run, project) {
   const trials = run.trials.filter(t => t.revision === run.revision).map(t => currentTrial(t, run));
   const groups = new Map(run.directions.filter(d => d.revision === run.revision).map(d => [d.id, { direction: d.id, regime: d.regime ?? d.id, hypothesis: short(d.hypothesis), localBest: candidateEvidence(d.best), startCandidate: candidateEvidence(d.best ?? d.seed), trials: [] }]));
   for (const trial of trials) {
-    const id = trial.direction ?? 'legacy';
+    const id = trial.direction;
     if (!groups.has(id)) groups.set(id, { direction: id, trials: [] });
     groups.get(id).trials.push(trial);
   }

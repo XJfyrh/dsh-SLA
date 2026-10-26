@@ -1,5 +1,5 @@
 import { validatePlan } from './research-state.js';
-import { compare, qualify } from './task-registry.js';
+import { compare, qualify } from './workflow-registry.js';
 import { acceptSelection } from './kernel.js';
 
 export function initialFrontier(task, baseline, criteria) {

@@ -1,21 +1,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { TaskRegistry, validateEvaluation, compare } from '../src/task-registry.js';
-import { performanceTask } from '../extensions/performance.js';
-import { bugfixTask } from '../extensions/bugfix.js';
+import { WorkflowRegistry, validateEvaluation, compare } from '../src/workflow-registry.js';
+import { performanceWorkflow } from '../extensions/performance.js';
+import { bugfixWorkflow } from '../extensions/bugfix.js';
 import { parseResult } from '../src/evaluation.js';
 
 test('registry rejects duplicates, binds exact version, disposes one registration only', () => {
-  const tasks = new TaskRegistry();
-  const dispose = tasks.register(performanceTask);
-  const first = tasks.get(performanceTask);
-  assert.throws(() => tasks.register(performanceTask), /重复/);
-  assert.throws(() => tasks.get({ ...performanceTask, version: '2.0.0' }), /版本/);
+  const tasks = new WorkflowRegistry();
+  const dispose = tasks.register(performanceWorkflow);
+  const first = tasks.get(performanceWorkflow);
+  assert.throws(() => tasks.register(performanceWorkflow), /重复/);
+  assert.throws(() => tasks.get({ ...performanceWorkflow, version: '2.0.0' }), /版本/);
   dispose();
   assert.equal(first.signal.aborted, true);
-  assert.throws(() => tasks.get(performanceTask), /未安装/);
-  tasks.register(performanceTask); dispose();
-  assert.equal(tasks.get(performanceTask).signal.aborted, false);
+  assert.throws(() => tasks.get(performanceWorkflow), /未安装/);
+  tasks.register(performanceWorkflow); dispose();
+  assert.equal(tasks.get(performanceWorkflow).signal.aborted, false);
 });
 
 test('evaluation accepts categorical results, refuses contradictory bugfix evidence', async () => {
@@ -23,7 +23,7 @@ test('evaluation accepts categorical results, refuses contradictory bugfix evide
   assert.throws(() => validateEvaluation({ valid: true, summary: 'x', score: NaN }), /数字/);
   assert.throws(() => compare({ compare: () => true }, {}, {}, {}), /扩展比较/);
   const execute = async () => ({ exitCode: 0, stdout: { text: 'SLA_RESULT '+JSON.stringify({ valid: true, reproduced: true, regressionPassed: true, summary: 'false success' }), truncated: false }, stderr: { text: '' } });
-  await assert.rejects(bugfixTask.evaluate({ execute }), /相互矛盾/);
+  await assert.rejects(bugfixWorkflow.evaluate({ execute }), /相互矛盾/);
 });
 
 test('completed negative checks stay distinct from evaluation process failures', () => {

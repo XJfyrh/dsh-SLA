@@ -6,9 +6,9 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { ExplorationEngine } from '../src/engine.js';
-import { performanceTask, parseEvaluation } from '../extensions/performance.js';
-import { bugfixTask } from '../extensions/bugfix.js';
-import { TaskRegistry } from '../src/task-registry.js';
+import { performanceWorkflow, parseEvaluation } from '../extensions/performance.js';
+import { bugfixWorkflow } from '../extensions/bugfix.js';
+import { WorkflowRegistry } from '../src/workflow-registry.js';
 import { z } from 'zod';
 import { inventory, snapshot } from '../src/workspace.js';
 const exec = promisify(execFile);
@@ -27,7 +27,7 @@ async function fixture(options = {}) {
       calls.push({ role: args.role, prompt: args.prompt, cwd: args.cwd });
       await args.onStarted('fresh-' + calls.length);
       if (options.invoke) { const result = await options.invoke(args); if (result) return result; }
-      if (args.role === 'selector') return { taskId: options.task?.id ?? performanceTask.id, reason: 'fixture selection' };
+      if (args.role === 'selector') return { taskId: options.task?.id ?? performanceWorkflow.id, reason: 'fixture selection' };
       if (args.role === 'scout') {
         await mkdir(path.join(args.cwd, '.sla'), { recursive: true });
         await writeFile(path.join(args.cwd, '.sla', 'evaluate.mjs'), `import fs from 'node:fs'; const v=JSON.parse(fs.readFileSync('candidate.json')); console.log('SLA_RESULT '+JSON.stringify({...v,summary:'fixture checks'}));`);
@@ -44,10 +44,10 @@ async function fixture(options = {}) {
       return { exitCode: 0, stdout: { text: stdout, truncated: false }, stderr: { text: stderr }, aborted: false, timedOut: false };
     },
   };
-  const tasks = new TaskRegistry();
+  const tasks = new WorkflowRegistry();
   // These existing lifecycle tests exercise a task without the optional review
   // capability. Epoch/review acceptance has its own fixtures and failure cases.
-  const unregister = tasks.register({ ...(options.task ?? performanceTask), review: undefined });
+  const unregister = tasks.register({ ...(options.task ?? performanceWorkflow), review: undefined });
   const engine = new ExplorationEngine({ store, adapter, tasks, root: path.join(root, 'runs'), maxTrials: 3, directions: 1, localTrials: 1 });
   return { root, cwd, engine, store, calls, adapter, tasks, unregister };
 }
@@ -126,7 +126,8 @@ test('recovery reconciles applied files and holds ambiguous partial adoption', a
 });
 test('crash recovery retains elapsed budget and interrupted invocation identity', async () => {
   const f = await fixture();
-  await f.store.put(parent.id, { status: 'running', trials: [], invocations: [{ status: 'running', childId: 'old' }], elapsedMs: 100, timeLimitMs: 5000, activeSince: Date.now() - 2000 });
+  await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
+  await f.store.put(parent.id, { ...f.engine.get(parent.id), status: 'running', trials: [], invocations: [{ status: 'running', childId: 'old' }], elapsedMs: 100, timeLimitMs: 5000, activeSince: Date.now() - 2000 });
   await f.engine.recover(); const run = f.engine.get(parent.id);
   assert.ok(run.elapsedMs >= 2100 && run.elapsedMs <= 5000);
   assert.equal(run.activeSince, undefined);
@@ -208,11 +209,13 @@ test('retrying failed discovery freezes a fresh evaluator without stale helper f
 });
 test('recovery marks unfinished work inconclusive without replaying it', async () => {
   const f = await fixture();
-  await f.store.put(parent.id, { status: 'running', trials: [{ status: 'running' }] });
+  await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
+  await f.store.put(parent.id, { ...f.engine.get(parent.id), status: 'running', trials: [{ status: 'running' }] });
+  const callsBeforeRecovery = f.calls.length;
   await f.engine.recover();
   assert.equal(f.store.get(parent.id).status, 'paused');
   assert.equal(f.store.get(parent.id).trials[0].status, 'inconclusive');
-  assert.equal(f.calls.length, 0);
+  assert.equal(f.calls.length, callsBeforeRecovery);
 });
 test('invalid and incomplete evaluation outputs never become valid scores', () => {
   const result = text => ({ exitCode: 0, stdout: { text, truncated: false }, stderr: { text: '' } });
@@ -230,13 +233,13 @@ test('snapshot excludes secrets and build artifacts, includes current uncommitte
 });
 
 test('independent bugfix extension accepts failing baseline, rejects regressions and adopts without a score', async () => {
-  const f = await fixture({ task: bugfixTask,
+  const f = await fixture({ task: bugfixWorkflow,
     initial: { valid: false, reproduced: true, regressionPassed: true },
     results: [{ valid: false, reproduced: false, regressionPassed: false }, { valid: true, reproduced: false, regressionPassed: true }],
   });
   await f.engine.action(parent, { action: 'start', text: 'fix defect' }); await settle(f.engine);
   const run = f.engine.get(parent.id);
-  assert.equal(run.status, 'completed'); assert.equal(run.task.id, bugfixTask.id);
+  assert.equal(run.status, 'completed'); assert.equal(run.task.id, bugfixWorkflow.id);
   assert.equal(run.baseline.valid, false); assert.equal(run.best.score, undefined);
   assert.equal(run.best.display, '修复通过'); assert.equal(run.attempts, 2);
   z.array(z.record(z.string(), z.json())).parse(run.trials);
@@ -257,10 +260,10 @@ test('unloading an extension cancels its active work and same version can resume
   f.unregister(); await settle(f.engine);
   assert.equal(f.engine.get(parent.id).status, 'blocked');
   assert.match(f.engine.get(parent.id).message, /扩展已卸载/);
-  f.tasks.register({ ...performanceTask, version: '2.0.0' });
+  f.tasks.register({ ...performanceWorkflow, version: '2.0.0' });
   await f.engine.action(parent, { action: 'resume' }); await settle(f.engine);
   assert.match(f.engine.get(parent.id).message, /版本不一致/);
-  const fresh = new TaskRegistry(); fresh.register({ ...performanceTask, review: undefined }); f.engine.tasks = fresh; block = false;
+  const fresh = new WorkflowRegistry(); fresh.register({ ...performanceWorkflow, review: undefined }); f.engine.tasks = fresh; block = false;
   await f.engine.action(parent, { action: 'resume' }); await settle(f.engine);
   assert.equal(f.engine.get(parent.id).status, 'completed');
   assert.equal(f.calls.filter(x => x.role === 'selector').length, 1);
@@ -273,7 +276,7 @@ test('missing extension prevents adoption even when prior candidate is valid', a
 });
 
 test('core accepts a separate extension with its own command and no evaluate.mjs or numeric metric', async () => {
-  const task = { ...bugfixTask, id: 'custom-check', name: 'Custom',
+  const task = { ...bugfixWorkflow, id: 'custom-check', name: 'Custom',
     async evaluate({ execute }) { const raw = await execute('external-check'); return JSON.parse(raw.stdout.text); },
   };
   const f = await fixture({ task, initial: { valid: false, reproduced: true, regressionPassed: true }, results: [{ valid: true, reproduced: false, regressionPassed: true }],
@@ -336,7 +339,7 @@ test('extension metadata cannot overwrite core trial identity or remove advisor 
 });
 
 test('native evaluator cannot bypass read-only adoption checks by omitting execute', async () => {
-  const task = { ...performanceTask, async evaluate({ cwd }) { return { ...JSON.parse(await readFile(path.join(cwd, 'candidate.json'))), summary: 'native checks' }; } };
+  const task = { ...performanceWorkflow, async evaluate({ cwd }) { return { ...JSON.parse(await readFile(path.join(cwd, 'candidate.json'))), summary: 'native checks' }; } };
   const f = await fixture({ task });
   await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
   f.adapter.authorize = async () => { throw new Error('只读模式'); };
@@ -351,7 +354,7 @@ test('native evaluator cannot bypass read-only adoption checks by omitting execu
 
 test('comparison and completion receive pure evaluation data even when fields overlap best metadata', async () => {
   const seen = [];
-  const task = { ...performanceTask,
+  const task = { ...performanceWorkflow,
     async evaluate({ cwd }) { return { ...JSON.parse(await readFile(path.join(cwd, 'candidate.json'))), summary: 'custom trial metric' }; },
     compare(candidate, reference) { seen.push([candidate.trial, reference.trial]); return candidate.trial < reference.trial ? 'better' : 'equal'; },
     complete(result) { return result.trial === 9; },

@@ -41,7 +41,7 @@ export async function reviewCandidate(engine, run, parent, signal, task, phase) 
     const added = Object.keys(proposedFiles).filter(name => !Object.hasOwn(priorFiles, name));
     if (added.some(name => !name.startsWith(checkDirectory + '/'))) throw new Error('审查在指定补充检查目录之外新增了文件');
     record.summary = response.summary;
-    // Optional presentation metadata keeps third-party review contracts compatible.
+    // Display metadata is optional; the executable check remains authoritative.
     for (const [key, limit] of [['title', 60], ['purpose', 300]]) {
       if (typeof response[key] === 'string' && response[key].trim() && response[key].length <= limit) record[key] = response[key].trim();
     }
@@ -78,19 +78,9 @@ export async function finishReview(engine, run, parent, signal, task) {
   const pending = run.pendingReview;
   if (!pending) return;
   if (pending.revision !== run.revision) throw new Error('待发布评价的目标版本不一致');
-  run.stage = 'review'; run.message = pending.kind === 'migration' ? '正在独立重测历史候选，建立可接续的观测身份' : '正在用新增检查复验初始项目与各方向候选';
+  run.stage = 'review'; run.message = '正在用新增检查复验初始项目与各方向候选';
   await engine.save(run);
   try {
-  // Old pending transactions have measured values but no separate observation
-  // identity. Preserve them as history, then re-evaluate instead of inventing it.
-  if (pending.results.some(r => !r.observationId)) {
-    pending.legacyResults = pending.results; pending.results = [];
-  }
-  if (pending.legacyResults && !(run.legacyEvaluations ?? []).some(entry => entry.transactionId === pending.id)) {
-    (run.legacyEvaluations ??= []).push({ transactionId: pending.id, revision: pending.revision, criteriaVersion: pending.criteriaVersion,
-      reason: '历史部分测量缺少独立观测身份，保留原值并重新执行', results: structuredClone(pending.legacyResults) });
-    await engine.save(run);
-  }
   for (const candidate of pending.candidates) {
     signal.throwIfAborted();
     if (candidate.files && changedFiles(candidate.files, await inventory(candidate.dir)).length) throw new Error('待复验候选内容已改变，未发布评价');
@@ -106,7 +96,7 @@ export async function finishReview(engine, run, parent, signal, task) {
     await engine.save(run);
   }
   } catch (error) {
-    if (!signal.aborted && pending.kind !== 'migration') {
+    if (!signal.aborted) {
       const record = run.reviews.find(r => r.id === pending.id);
       record.status = 'inconclusive'; record.error = String(error.message ?? error);
       record.failedProposal = pending;
@@ -132,7 +122,7 @@ export async function finishReview(engine, run, parent, signal, task) {
   }
   publishCriteria(run, pending, { baseline: base, best, local, frontier });
   run.evaluationDir = pending.evaluationDir; run.evaluationFiles = pending.evaluationFiles; run.checks = pending.checks;
-  if (pending.kind !== 'migration') run.baselineReviewed = run.revision;
+  run.baselineReviewed = run.revision;
   run.reviewedBest = record?.phase === 'candidate' && best.trial === record.targetTrial
     ? { trial: best.trial, criteriaVersion: run.criteriaVersion, revision: run.revision, task: run.task, files: record.targetFiles } : null;
   await engine.save(run);

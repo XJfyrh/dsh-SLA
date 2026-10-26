@@ -1,10 +1,11 @@
+import { defineCodeWorkflow } from '../src/workflow.js';
 import { intro, scoutSchema } from '../src/prompts.js';
 import { parseResult } from '../src/evaluation.js';
-import { validateEvaluation } from '../src/task-registry.js';
+import { validateEvaluation } from '../src/workflow-registry.js';
 import { preservedBehaviorReview } from './code-review.js';
 import { codeRuntimeGuidance } from './code-runtime.js';
 
-export const bugfixTask = {
+export const bugfixWorkflow = defineCodeWorkflow({
   id: 'code-bugfix', version: '1.1.0', name: '缺陷修复',
   description: '修复明确的错误、异常输出或失败用例。通过可复现缺陷和回归测试判断完成，不需要性能分数。',
   prepare: { schema: scoutSchema, prompt: run => `${intro(run)}
@@ -30,7 +31,7 @@ title 用一句简短中文概括判断目标；criterion 用 Markdown 小标题
   },
   compare(candidate, reference) { return candidate.valid === reference.valid ? 'equal' : candidate.valid ? 'better' : 'worse'; },
   complete(result) { return result.valid; },
-};
+});
 
 export const inject = ['sla'];
-export function apply(ctx) { ctx.effect(() => ctx.sla.registerTask(bugfixTask)); }
+export function apply(ctx) { ctx.effect(() => ctx.sla.registerWorkflow(bugfixWorkflow)); }

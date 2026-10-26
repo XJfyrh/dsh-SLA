@@ -8,15 +8,10 @@ export class ExplorationEngine extends ExplorationRuntime {
   constructor(options) {
     let code;
     super({ ...options, selectWorkflow: options.selectWorkflow ?? selectProjectWorkflow,
-      migrateRecord: record => {
-        if (record.id && !record.formatVersion && !record.task) {
-          record.task = { id: 'code-performance', version: '1.0.0', name: '代码性能' };
-          record.selectionReason = '从 0.1 的性能评价记录迁移，保留原有规则。';
-        }
-      },
       resolveWorkflow: run => {
-        if (run.workflow?.kind === 'native' || (run.task && this.tasks.entries.get(run.task.id)?.native)) return new NativeWorkflow(this, run.task);
-        return code ??= new CodeWorkflow(this);
+        if (run.workflow?.kind === 'native') return new NativeWorkflow(this, run.task);
+        if (run.workflow?.kind === 'code') return code ??= new CodeWorkflow(this);
+        throw new Error('探索尚未绑定工作流');
       },
     });
   }

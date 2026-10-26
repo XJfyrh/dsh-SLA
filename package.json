@@ -1,7 +1,6 @@
 {
   "name": "dsh-sla",
   "version": "0.4.0",
-  "private": true,
   "type": "module",
   "description": "从一句目标开始，自主建立依据并持续探索项目改进。",
   "engines": {
@@ -18,10 +17,6 @@
       "types": "./src/workflow.d.ts",
       "default": "./src/workflow.js"
     },
-    "./extension": {
-      "types": "./src/extension.d.ts",
-      "default": "./src/evaluation.js"
-    },
     "./client": "./client.js",
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg"
@@ -35,31 +30,30 @@
     "icon.svg",
     "README.md",
     "docs",
-    "examples",
-    "scripts",
-    "test"
+    "examples"
   ],
   "scripts": {
     "test": "node --test test/*.test.js examples/*/*.test.js",
     "check": "node scripts/check.mjs",
-    "check:types": "npm exec --yes --package typescript@5.9.3 -- tsc --noEmit --strict --skipLibCheck --module NodeNext --target ES2022 test/workflow-types.ts",
-    "build:client": "node scripts/build-client.mjs"
+    "check:types": "tsc --noEmit --strict --module NodeNext --target ES2022 test/workflow-types.ts",
+    "build:client": "node scripts/build-client.mjs",
+    "check:package": "node scripts/check-package.mjs"
   },
   "dependencies": {
-    "zod": "4.1.12"
+    "zod": "4.6.7"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "4.0.5",
     "@deepseek-ai/dsh-llm": "0.2.1-rc.2",
     "@deepseek-ai/dsh-persona": "0.2.1-rc.2",
     "@deepseek-ai/dsh-skill-filesystem": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-storage-domain": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-tool-bash": "0.2.1-rc.2",
     "@deepseek-ai/dsh-tool-fs": "0.2.1-rc.2",
     "@deepseek-ai/dsh-tool-fs-search": "0.2.1-rc.2",
-    "@deepseek-ai/dsh-tool-skill": "0.2.1-rc.2",
     "@deepseek-ai/dsh-tool-pwsh": "0.2.1-rc.2",
-    "@deepseek-ai/dsh-tool-bash": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-tool-skill": "0.2.1-rc.2",
     "@deepseek-ai/dsh-tools": "0.2.1-rc.2",
-    "@deepseek-ai/dsh-storage-domain": "0.2.1-rc.2",
     "@deepseek-ai/dsh-typert-protocol": "0.2.1-rc.2"
   },
   "dsh": {
@@ -76,5 +70,32 @@
         "@deepseek-ai/dsh-api-remotes"
       ]
     }
+  },
+  "license": "MIT",
+  "author": "XJfyrh",
+  "keywords": [
+    "deepseek-harness",
+    "dsh-plugin",
+    "stateless-language-agents",
+    "sla"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.5",
+    "@deepseek-ai/dsh-llm": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-persona": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-skill-filesystem": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-storage-domain": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-tool-bash": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-tool-fs": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-tool-fs-search": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-tool-pwsh": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-tool-skill": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-tools": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-typert-protocol": "0.2.1-rc.2",
+    "typescript": "5.9.3"
   }
 }

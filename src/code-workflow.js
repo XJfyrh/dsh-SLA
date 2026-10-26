@@ -3,7 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { inventory, snapshot, changedFiles, copyEvaluation, verifyEvaluation, adopt, recoverAdoption, candidateDiff } from './workspace.js';
 import { advisorSchema, advisorPrompt, workerPrompt } from './prompts.js';
-import { compare, qualify, validateEvaluation } from './task-registry.js';
+import { compare, qualify, validateEvaluation } from './workflow-registry.js';
 import { reviewed } from './research-state.js';
 import { reviewCandidate, finishReview } from './review.js';
 import { explore, retain, initialFrontier } from './sla-strategy.js';
@@ -77,7 +77,7 @@ export class CodeWorkflow {
   }
   async execute(run, parent, signal) {
     run.status = 'running';
-    run.workflow = { kind: 'code', id: 'file-code', version: '1.0.0' };
+    run.workflow = { kind: 'code', id: run.task.id, version: run.task.version };
     if (!run.sourceFiles) {
       run.baselineDir = path.join(run.root, 'initial-' + randomUUID());
       run.sourceFiles = await snapshot(run.cwd, run.baselineDir);
@@ -113,7 +113,6 @@ export class CodeWorkflow {
       run.frontier = initialFrontier(task, run.best, criteria);
       await this.save(run);
     }
-    await this.bindLegacyArtifacts(run);
     if (run.pendingReview) await finishReview(this, run, parent, signal, task);
     if (task.review && run.baselineReviewed !== run.revision) await reviewCandidate(this, run, parent, signal, task, 'baseline');
     await this.resumeEvaluations(run, parent, signal, task);
@@ -186,29 +185,6 @@ export class CodeWorkflow {
       }
       if (signal.aborted || phase === 'snapshot') throw e;
     }
-  }
-  async bindLegacyArtifacts(run) {
-    run.baselineArtifactId ??= (await fileArtifact(run, run.baselineDir)).id;
-    for (const candidate of [run.best, ...run.directions.filter(d => d.revision === run.revision).flatMap(d => [d.seed, d.best])].filter(Boolean)) {
-      if (candidate.artifactId) continue;
-      const trial = candidate.trial ? run.trials.find(t => t.number === candidate.trial) : null;
-      const expected = trial?.files ?? (candidate.trial ? candidate.files : run.sourceFiles);
-      if (!expected || changedFiles(expected, await inventory(candidate.dir)).length) throw new Error('历史候选缺少可核对的内容身份，请重新建立探索');
-      candidate.artifactId = (await fileArtifact(run, candidate.dir, candidate.trial, trial?.parentArtifactId)).id;
-      if (trial) trial.artifactId = candidate.artifactId;
-    }
-    if (!run.best.observationId && !run.pendingReview) {
-      const candidates = [{ trial: 0, dir: run.baselineDir, files: run.sourceFiles, artifactId: run.baselineArtifactId },
-        ...run.trials.filter(t => t.revision === run.revision && (t.eligibility?.retain ?? t.valid) && t.changes?.length)
-          .map(t => ({ trial: t.number, dir: t.dir, files: t.files, direction: t.direction }))];
-      if (run.best.trial && !candidates.some(c => c.trial === run.best.trial)) candidates.push({ ...run.best, files: run.best.files ?? run.trials.find(t => t.number === run.best.trial)?.files });
-      if (candidates.some(c => !c.files)) throw new Error('历史候选缺少文件校验信息，无法迁移评价');
-      // Historical values are retained, never relabeled as new observations.
-      // Reuse the complete re-evaluation transaction before resuming search.
-      run.pendingReview = { id: randomUUID(), kind: 'migration', revision: run.revision, criteriaVersion: run.criteriaVersion + 1,
-        evaluationDir: run.evaluationDir, evaluationFiles: run.evaluationFiles, checks: run.checks, candidates, results: [] };
-    }
-    await this.save(run);
   }
   async assessTrial(run, parent, signal, task, trial, direction) {
     signal.throwIfAborted();

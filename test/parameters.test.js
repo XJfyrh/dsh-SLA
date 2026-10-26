@@ -6,7 +6,7 @@ import os from 'node:os';
 import { parameterWorkflow } from '../extensions/parameters.js';
 import { evaluateRetrieval, validateDataset } from '../extensions/retrieval-evaluator.js';
 import { ExplorationEngine } from '../src/engine.js';
-import { TaskRegistry } from '../src/task-registry.js';
+import { WorkflowRegistry } from '../src/workflow-registry.js';
 import { changePreview } from '../src/change-preview.js';
 import { inventory } from '../src/workspace.js';
 
@@ -14,7 +14,7 @@ test('bundled retrieval workflow evaluates JSON candidates, previews content and
   const root = await mkdtemp(path.join(os.tmpdir(), 'sla-parameters-')), cwd = path.join(root, 'project');
   await cp(new URL('../examples/retrieval-parameters/', import.meta.url), cwd, { recursive: true });
   const before = await inventory(cwd), records = new Map(), roles = [];
-  const tasks = new TaskRegistry(); tasks.registerWorkflow(parameterWorkflow);
+  const tasks = new WorkflowRegistry(); tasks.register(parameterWorkflow);
   const engine = new ExplorationEngine({ root: path.join(root, 'runs'), tasks,
     store: { entries: () => records.entries(), get: id => records.get(id), put: async (id, run) => records.set(id, structuredClone(run)) },
     adapter: { directory: async () => cwd, authorize: async () => {}, error: error => { throw error; },

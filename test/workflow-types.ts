@@ -1,5 +1,5 @@
-import type { SlaExtensionService } from '../src/extension.js';
-import { defineWorkflow, jsonArtifact, verifyJsonArtifact, type DeliveryRecovery, type RoleBlueprint } from '../src/workflow.js';
+import type { SlaExtensionService } from 'dsh-sla/workflow';
+import { defineWorkflow, jsonArtifact, verifyJsonArtifact, type DeliveryRecovery, type RoleBlueprint } from 'dsh-sla/workflow';
 declare const service: SlaExtensionService;
 const workflow = defineWorkflow({
   id: 'typed-example', version: '1.0.0', name: 'Example', description: 'Example',
@@ -14,8 +14,8 @@ const workflow = defineWorkflow({
   recoverDelivery: async (): Promise<DeliveryRecovery> => ({ status: 'absent' }),
 });
 service.registerWorkflow(workflow);
-// @ts-expect-error File tasks require their prepare contract.
-service.registerTask(workflow);
+// @ts-expect-error Registration requires an explicit workflow kind.
+service.registerWorkflow({ ...workflow, kind: 'unknown' });
 // @ts-expect-error Unknown tool groups must not enter the role contract.
 const invalidRole: RoleBlueprint = { instructions: '', tools: ['unknown'] };
 // @ts-expect-error Recovery must distinguish missing effects from uncertainty.

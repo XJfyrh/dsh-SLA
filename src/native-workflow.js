@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { artifactById, beginRevision, candidateFrom, jsonValue, observe, publishCriteria, reserveAttempt, sealArtifact } from './kernel.js';
-import { validateEvaluation, compare, qualify } from './task-registry.js';
+import { validateEvaluation, compare, qualify } from './workflow-registry.js';
 import { explore, retain, initialFrontier, rerank } from './sla-strategy.js';
 import { advisorEvidence, feedback } from './research-state.js';
 

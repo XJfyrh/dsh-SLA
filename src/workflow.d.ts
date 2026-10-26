@@ -1,5 +1,4 @@
 import type { Context } from '@deepseek-ai/cordis';
-import type { Criteria, Evaluation, CommandResult, TaskDefinition } from './extension.js';
 
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 export interface ArtifactInput { kind: string; digest: string; payload: JsonValue }
@@ -40,7 +39,7 @@ export interface WorkflowContext {
     afterTrial?(input: { trial: Record<string, unknown>; state: WorkflowState }): void | Promise<void>;
   }): Promise<WorkflowState>;
 }
-export interface WorkflowDefinition extends Pick<TaskDefinition, 'id' | 'version' | 'name' | 'description' | 'validateBaseline' | 'compare' | 'complete' | 'qualify' | 'projectEvidence'> {
+export interface WorkflowDefinition extends Pick<CodeWorkflowDefinition, 'id' | 'version' | 'name' | 'description' | 'validateBaseline' | 'compare' | 'complete' | 'qualify' | 'projectEvidence'> {
   artifacts: { verify(artifact: ArtifactInput): void | Promise<void> };
   evaluate(input: { artifact: Artifact; criteria: Criteria; signal: AbortSignal; execute(command: string): Promise<CommandResult> }): Evaluation | Promise<Evaluation>;
   run(context: WorkflowContext): void | Promise<void>;
@@ -50,7 +49,49 @@ export interface WorkflowDefinition extends Pick<TaskDefinition, 'id' | 'version
   recoverDelivery?(state: WorkflowState): DeliveryRecovery | Promise<DeliveryRecovery>;
 }
 export type DeliveryRecovery = { status: 'delivered'; receipt: JsonValue } | { status: 'absent' } | { status: 'unknown'; reason: string };
-export function defineWorkflow<T extends WorkflowDefinition>(definition: T): T;
+export function defineWorkflow<T extends WorkflowDefinition>(definition: T): T & { kind: 'native' };
+export function defineCodeWorkflow<T extends CodeWorkflowDefinition>(definition: T): T & { kind: 'code' };
 export function jsonArtifact(value: JsonValue): ArtifactInput;
 export function verifyJsonArtifact(artifact: ArtifactInput): void;
 export const slaPlanSchema: Record<string, unknown>;
+
+export type RegisteredWorkflow = (WorkflowDefinition & { kind: 'native' }) | (CodeWorkflowDefinition & { kind: 'code' });
+export interface SlaExtensionService { registerWorkflow(workflow: RegisteredWorkflow): () => void }
+declare module '@deepseek-ai/cordis' { interface Context { sla: SlaExtensionService } }
+export function parseResult(result: CommandResult): unknown;
+
+export interface Evaluation {
+  valid: boolean;
+  summary: string;
+  display?: string;
+  [key: string]: unknown;
+}
+export type Comparison = 'better' | 'equal' | 'worse' | 'incomparable';
+export interface Criteria { ready: boolean; criterion: string; reason?: string; unit?: string; [key: string]: unknown }
+export interface RunContext { goal: string; notes: string[]; [key: string]: unknown }
+export interface CommandResult {
+  exitCode: number | null;
+  stdout: { text: string; truncated?: boolean };
+  stderr: { text: string };
+  aborted?: boolean;
+  timedOut?: boolean;
+}
+export interface CodeWorkflowDefinition {
+  id: string;
+  version: string;
+  name: string;
+  description: string;
+  instructions?: string;
+  prepare: { schema: Record<string, unknown>; prompt(run: RunContext): string };
+  evaluate(input: { cwd: string; signal: AbortSignal; criteria: Criteria; execute(command: string): Promise<CommandResult> }): Promise<Evaluation>;
+  validateBaseline(result: Evaluation, criteria: Criteria): void | Promise<void>;
+  compare(candidate: Evaluation, reference: Evaluation, criteria: Criteria): Comparison;
+  complete?(candidate: Evaluation, criteria: Criteria): boolean;
+  qualify?(candidate: Evaluation, criteria: Criteria): { retain: boolean; deliver: boolean };
+  projectEvidence?(result: Evaluation): unknown;
+  review?: {
+    schema: Record<string, unknown>;
+    prompt(run: RunContext, context: { phase: 'baseline' | 'candidate'; checkDirectory: string; originalDirectory: string; previousFailures: string[] }): string;
+    evaluate(input: { cwd: string; signal: AbortSignal; criteria: Criteria; execute(command: string): Promise<CommandResult>; check: { id: string; directory: string; summary: string; title?: string; purpose?: string } }): Promise<{ passed: boolean; summary: string }>;
+  };
+}

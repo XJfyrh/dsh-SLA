@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { inventory } from '../src/workspace.js';
 import { changePreview } from '../src/change-preview.js';
-import { criteriaMarkdown, evaluationView, currentEvaluation, matchesPreview, candidateBrief, checkPresentation, decisionView } from '../src/presentation.js';
+import { evaluationView, currentEvaluation, matchesPreview, candidateBrief, checkPresentation, decisionView } from '../src/presentation.js';
 
 const decisionRun = (evaluation = { valid: true, score: 2 }) => ({
   revision: 1, criteriaVersion: 2, status: 'completed', reviewSupported: true,
@@ -45,25 +45,15 @@ test('semantic check metadata and historical finding remain separate from curren
   const view = checkPresentation(run, check, 0);
   assert.equal(view.title, '自定义迭代器语义'); assert.equal(view.origin.trial, 4); assert.equal(view.origin.version, 2);
   assert.equal(view.original, '旧候选未通过'); assert.equal(check.passed, true);
-  const legacy = checkPresentation({ checks: [{ id: 'a', summary: 'legacy' }] }, check, 0);
-  assert.equal(legacy.title, null); assert.equal(legacy.origin, null);
+  const unnamed = checkPresentation({ checks: [{ id: 'a', summary: 'unnamed' }] }, check, 0);
+  assert.equal(unnamed.title, null); assert.equal(unnamed.origin, null);
 });
 
-test('only bounded explicit worker sections become user briefs; legacy logs stay original', () => {
+test('only bounded explicit worker sections become user briefs; unstructured logs stay original', () => {
   assert.deepEqual(candidateBrief('all passed; great improvement'), {});
   assert.deepEqual(candidateBrief('```md\n### 改动说明\nThis is a quoted template.\n```'), {});
   assert.deepEqual(candidateBrief('### 改动说明\n' + 'x'.repeat(501)), {});
   assert.deepEqual(candidateBrief('### 改动说明\n调整边界。\n### 尚未验证\n其它平台。\n### 实现记录\nSLA_RESULT {}'), { change: '调整边界。', unverified: '其它平台。' });
-});
-
-test('legacy criteria become paragraphs and lists without rewriting inline code or authored Markdown', () => {
-  const text = 'criterion：检查：(1) 运行 `fn();(2)`；(2) 保持行为。性能：重复测量。';
-  const formatted = criteriaMarkdown(text);
-  assert.match(formatted, /\n\n1\. 运行 `fn\(\);\(2\)`/);
-  assert.match(formatted, /\n\n2\. 保持行为/);
-  assert.match(formatted, /### 性能/);
-  const md = '### 检查\n\n- `code`\n\n```js\nf();\n```\n\n| A | B |\n|---|---|';
-  assert.equal(criteriaMarkdown(md), md);
 });
 
 test('unknown and failed checks cannot become a passed presentation', () => {
@@ -85,10 +75,10 @@ test('current failed assessment supersedes historical success without rewriting 
 });
 
 test('late change previews cannot be shown for a different run, candidate or evaluation version', () => {
-  const run = { id: 'a', best: { trial: 2 }, criteriaVersion: 3 };
-  const preview = { runId: 'a', trial: 2, criteriaVersion: 3 };
+  const run = { id: 'a', best: { trial: 2, artifactId: 'sealed' }, criteriaVersion: 3 };
+  const preview = { runId: 'a', trial: 2, artifactId: 'sealed', criteriaVersion: 3 };
   assert.equal(matchesPreview(preview, run), true);
-  for (const patch of [{ runId: 'b' }, { trial: 1 }, { criteriaVersion: 2 }]) assert.equal(matchesPreview({ ...preview, ...patch }, run), false);
+  for (const patch of [{ runId: 'b' }, { trial: 1 }, { criteriaVersion: 2 }, { artifactId: 'changed' }, { artifactId: undefined }]) assert.equal(matchesPreview({ ...preview, ...patch }, run), false);
 });
 
 async function fixture() {

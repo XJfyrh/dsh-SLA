@@ -6,7 +6,7 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { ExplorationEngine } from '../src/engine.js';
-import { TaskRegistry } from '../src/task-registry.js';
+import { WorkflowRegistry } from '../src/workflow-registry.js';
 import { advisorEvidence, settings } from '../src/research-state.js';
 import { preservedBehaviorReview } from '../extensions/code-review.js';
 const exec = promisify(execFile), parent = { id: 'epoch-test' };
@@ -19,11 +19,11 @@ async function fixture(options = {}) {
   await write(cwd, options.initial ?? { score: 100, behavior: 'correct' });
   const records = new Map(), calls = [];
   const store = { get: id => records.get(id), entries: () => records.entries(), put: async (id, value) => records.set(id, structuredClone(value)) };
-  const task = { id: 'epoch-fixture', version: '1.0.0', name: 'epoch test', description: 'stateful experiment', prepare: { schema: {}, prompt: () => 'prepare' },
+  const task = { kind: 'code', id: 'epoch-fixture', version: '1.0.0', name: 'epoch test', description: 'stateful experiment', prepare: { schema: {}, prompt: () => 'prepare' },
     async evaluate({ cwd }) { const v = await read(cwd); return { valid: true, score: v.score, summary: 'measured ' + v.score }; },
     validateBaseline: () => {}, compare: (a, b) => a.score < b.score ? 'better' : a.score === b.score ? 'equal' : 'worse', ...options.task,
     ...(options.review ? { review: preservedBehaviorReview('测试保留行为') } : {}) };
-  const tasks = new TaskRegistry(); tasks.register(task);
+  const tasks = new WorkflowRegistry(); tasks.register(task);
   let workers = 0, plans = 0;
   const adapter = { authorize: async () => {}, directory: async () => cwd, error: e => { throw e; },
     async invoke(args) {
@@ -92,46 +92,8 @@ test('changed sealed parent cannot silently become the input to a later worker o
   }
 });
 
-test('format 3 candidates are independently remeasured before frontier and search migrate', async () => {
-  const f = await fixture({ maxTrials: 1, localTrials: 1, plans: [['fast']], results: [{ score: 90, behavior: 'correct' }, { score: 95, behavior: 'correct' }] });
-  await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
-  const legacy = f.engine.get(parent.id); legacy.formatVersion = 3;
-  for (const key of ['artifacts', 'observations', 'decisions', 'frontier', 'baselineArtifactId', 'baselineObservationId']) delete legacy[key];
-  for (const candidate of [legacy.best, ...legacy.directions.flatMap(d => [d.best, d.seed]).filter(Boolean), ...legacy.trials]) {
-    for (const key of ['artifactId', 'observationId', 'parentArtifactId', 'selection', 'eligibility']) delete candidate[key];
-  }
-  await f.store.put(parent.id, legacy); await f.engine.dispose();
-  const reopened = new ExplorationEngine(f.config); await reopened.recover();
-  assert.equal(reopened.get(parent.id).observations.length, 0);
-  await reopened.action(parent, { action: 'resume' }); await settle(reopened);
-  const run = reopened.get(parent.id);
-  assert.equal(run.status, 'completed', run.message); assert.equal(run.best.score, 90);
-  assert.equal(run.criteriaVersion, 2); assert.equal(run.trials[0].evaluation.score, 90);
-  assert.equal(run.assessments.find(a => a.trial === 1).evaluation.score, 90);
-  assert.deepEqual(run.frontier.map(c => c.trial), [1]);
-  assert.ok(run.best.observationId); assert.equal(run.trials[1].parentArtifactId, run.best.artifactId);
-});
-
-test('legacy pending evaluation values survive a successful publication as historical evidence', async () => {
-  const f = await fixture({ maxTrials: 1, plans: [['fast']], results: [{ score: 90, behavior: 'correct' }] });
-  await f.engine.action(parent, { action: 'start', text: 'improve' }); await settle(f.engine);
-  const run = f.engine.get(parent.id), trial = run.trials[0];
-  const historical = { trial: 0, dir: run.baselineDir, evaluation: { valid: true, score: 100, summary: 'historical partial evaluation' } };
-  run.reviews.push({ id: 'legacy-review', phase: 'candidate', targetTrial: 1, targetFiles: trial.files, status: 'checking', revision: 1, criteriaVersion: 1 });
-  run.pendingReview = { id: 'legacy-review', revision: 1, criteriaVersion: 2, evaluationDir: run.evaluationDir, evaluationFiles: run.evaluationFiles, checks: [],
-    candidates: [{ trial: 0, dir: run.baselineDir, files: run.sourceFiles }, { trial: 1, dir: trial.dir, files: trial.files, direction: trial.direction }], results: [historical] };
-  await f.store.put(parent.id, run); await f.engine.dispose();
-  const reopened = new ExplorationEngine(f.config); await reopened.recover();
-  await reopened.action(parent, { action: 'review' }); await settle(reopened);
-  const migrated = reopened.get(parent.id);
-  assert.equal(migrated.status, 'completed', migrated.message); assert.equal(migrated.pendingReview, null);
-  assert.equal(migrated.criteriaVersion, 2); assert.deepEqual(migrated.legacyEvaluations[0].results, [historical]);
-  assert.equal(migrated.legacyEvaluations[0].transactionId, 'legacy-review');
-  assert.notEqual(migrated.assessments.find(a => a.trial === 0 && a.criteriaVersion === 2).evaluation.summary, historical.evaluation.summary);
-});
-
 test('grouped evidence retains old negative evidence and separates execution failures', () => {
-  const run = { revision: 1, criteriaVersion: 1, directions: [], trials: Array.from({ length: 14 }, (_, i) => ({ number: i+1, revision: 1, direction: i ? 'other' : 'old-method', hypothesis: i ? 'new' : 'negative mechanism', status: i ? 'inconclusive' : 'no-improvement', summary: i ? 'runtime missing' : 'measured worse' })) };
+  const run = { revision: 1, criteriaVersion: 1, directions: [], trials: Array.from({ length: 14 }, (_, i) => ({ number: i+1, revision: 1, criteriaVersion: 1, direction: i ? 'other' : 'old-method', hypothesis: i ? 'new' : 'negative mechanism', status: i ? 'inconclusive' : 'no-improvement', summary: i ? 'runtime missing' : 'measured worse' })) };
   const evidence = advisorEvidence(run);
   assert.equal(evidence[0].evidence[0].trial, 1); assert.equal(evidence[0].counts['no-improvement'], 1);
   assert.equal(evidence[1].counts.inconclusive, 13); assert.equal(evidence[1].counts['no-improvement'], undefined);

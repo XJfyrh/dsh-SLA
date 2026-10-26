@@ -7,7 +7,7 @@ import { verifyJsonArtifact } from './json-artifacts.js';
 
 // Read only the run's retained snapshots. The browser never supplies file paths.
 export async function changePreview(run) {
-  const identity = { runId: run?.id, trial: run?.best?.trial, criteriaVersion: run?.criteriaVersion ?? run?.revision,
+  const identity = { runId: run?.id, trial: run?.best?.trial, criteriaVersion: run?.criteriaVersion,
     ...(run?.best?.artifactId ? { artifactId: run.best.artifactId } : {}) };
   if (run?.best?.trial && run.workflow?.kind === 'native') {
     const before = artifactById(run, run.baselineArtifactId), after = artifactById(run, run.best.artifactId);
@@ -20,7 +20,7 @@ export async function changePreview(run) {
   if (!run?.best?.trial || !run.baselineDir || !run.best.dir) return { ...identity, files: [] };
   const before = await inventory(run.baselineDir), after = await inventory(run.best.dir);
   const expected = run.best.files ?? run.trials?.find(t => t.number === run.best.trial)?.files;
-  if (!run.sourceFiles || !expected) throw new Error('此历史记录缺少文件校验信息，请查看原始补丁。');
+  if (!run.sourceFiles || !expected) throw new Error('记录缺少文件校验信息，请查看原始补丁。');
   if (changedFiles(run.sourceFiles, before).length || changedFiles(expected, after).length) throw new Error('快照内容已改变，不能将当前文件展示为已验证候选。请查看原始补丁。');
   let remaining = 512 * 1024;
   async function text(root, name, hash) {

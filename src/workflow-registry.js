@@ -1,14 +1,13 @@
 // Registration belongs to the DSH plugin that calls it. Its disposer withdraws
 // the capability and cancels calls still using that exact registration.
-export class TaskRegistry {
+export class WorkflowRegistry {
   entries = new Map();
-  register(task) { return this.registerDefinition(task, false); }
-  registerWorkflow(workflow) { return this.registerDefinition(workflow, true); }
-  registerDefinition(task, native) {
+  register(task) {
+    if (!['code', 'native'].includes(task.kind)) throw new Error('使用 defineCodeWorkflow 或 defineWorkflow 定义工作流');
     if (!/^[a-z][a-z0-9-]{0,63}$/.test(task.id ?? '') || !/^\d+\.\d+\.\d+$/.test(task.version ?? '')) throw new Error('任务扩展需要稳定 id 和语义版本');
     for (const key of ['name', 'description']) if (typeof task[key] !== 'string' || !task[key].trim()) throw new Error('任务扩展缺少 ' + key);
     for (const key of ['evaluate', 'validateBaseline', 'compare']) if (typeof task[key] !== 'function') throw new Error('任务扩展缺少 ' + key);
-    if (native) {
+    if (task.kind === 'native') {
       if (typeof task.run !== 'function' || typeof task.artifacts?.verify !== 'function') throw new Error('工作流缺少 run 或制品校验能力');
       for (const key of ['deliver', 'recoverDelivery']) if (task[key] !== undefined && typeof task[key] !== 'function') throw new Error(key + ' 必须是函数');
     } else if (!task.prepare?.schema || typeof task.prepare.prompt !== 'function') throw new Error('任务扩展缺少 prepare');
@@ -21,7 +20,7 @@ export class TaskRegistry {
       ...(task.prepare ? { prepare: Object.freeze({ ...task.prepare, schema: structuredClone(task.prepare.schema) }) } : {}),
       ...(task.artifacts ? { artifacts: Object.freeze({ ...task.artifacts }) } : {}),
       ...(task.review ? { review: Object.freeze({ ...task.review, schema: structuredClone(task.review.schema) }) } : {}) });
-    const entry = { task: definition, native, signal: controller.signal };
+    const entry = { task: definition, signal: controller.signal };
     this.entries.set(task.id, entry);
     return () => {
       if (this.entries.get(task.id) !== entry) return;

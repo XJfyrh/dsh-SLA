@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readdir, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { ExplorationEngine } from '../src/engine.js';
-import { TaskRegistry } from '../src/task-registry.js';
+import { WorkflowRegistry } from '../src/workflow-registry.js';
 import { jsonArtifact, verifyJsonArtifact } from '../src/json-artifacts.js';
 import { artifactById, acceptSelection } from '../src/kernel.js';
 
@@ -16,7 +16,7 @@ async function fixture(options = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'sla-workflow-')), cwd = path.join(root, 'empty-workspace'); await mkdir(cwd);
   const records = new Map(), calls = [], evidence = [];
   const store = { get: id => records.get(id), entries: () => records.entries(), put: async (id, value) => records.set(id, structuredClone(value)) };
-  const workflow = {
+  const workflow = { kind: 'native',
     id: 'parameter-fixture', version: '1.0.0', name: '参数实验', description: '已有评测器的参数优化',
     artifacts: { verify: verifyJsonArtifact },
     async evaluate({ artifact, criteria }) {
@@ -40,7 +40,7 @@ async function fixture(options = {}) {
     async deliver({ artifact, authorize }) { await authorize(); return { kind: 'parameter-package', value: artifact.payload, artifactId: artifact.id }; },
     ...options.workflow,
   };
-  const tasks = new TaskRegistry(), unregister = tasks.registerWorkflow(workflow);
+  const tasks = new WorkflowRegistry(), unregister = tasks.register(workflow);
   const adapter = { directory: async () => cwd, authorize: async () => {}, error: error => { throw error; },
     async invoke(args) { calls.push(args.role); await args.onStarted('selector'); assert.equal(args.role, 'selector'); return { taskId: workflow.id, reason: 'parameter task' }; },
     execute: async () => { throw new Error('This workflow has no shell evaluator'); },
@@ -126,7 +126,7 @@ test('workflow registration binds version, unload cancels work, and old records 
   const reopened = new ExplorationEngine(f.config); await reopened.recover();
   assert.equal(reopened.get(parent.id).status, 'blocked');
   assert.throws(() => f.config.tasks.get(f.workflow), /未安装/);
-  f.config.tasks.registerWorkflow({ ...f.workflow, version: '2.0.0' });
+  f.config.tasks.register({ ...f.workflow, version: '2.0.0' });
   await reopened.action(parent, { action: 'resume' }); await settle(reopened);
   assert.match(reopened.get(parent.id).message, /版本不一致/);
 });

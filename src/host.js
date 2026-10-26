@@ -7,17 +7,17 @@ import { randomUUID } from 'node:crypto';
 import { remote } from './remote.js';
 import { ExplorationEngine } from './engine.js';
 import { mountResearcher } from './researcher.js';
-import { TaskRegistry } from './task-registry.js';
+import { WorkflowRegistry } from './workflow-registry.js';
 import { changePreview } from './change-preview.js';
 import { settings as parseSettings } from './research-state.js';
 
 const runSchema = z.object({
-  id: z.string(), sessionId: z.string(), goal: z.string(), cwd: z.string(), root: z.string(),
+  formatVersion: z.literal(1), id: z.string(), sessionId: z.string(), goal: z.string(), cwd: z.string(), root: z.string(),
   status: z.enum(['preparing', 'running', 'pausing', 'paused', 'stopping', 'completed', 'blocked']),
   revision: z.number().int().positive(), trials: z.array(z.record(z.string(), z.json())),
   attempts: z.number().int().nonnegative(), notes: z.array(z.string()),
 }).passthrough();
-const domain = defineDomain({ name: 'sla_exploration', version: 1, tables: { runs: domainTable(runSchema) } });
+const domain = defineDomain({ name: 'sla_runs', version: 1, tables: { runs: domainTable(runSchema) } });
 const actionSchema = z.object({ action: z.enum(['start', 'pause', 'resume', 'steer', 'stop', 'adopt', 'configure', 'review']), text: z.string().trim().max(12000).optional(), settings: z.object({ maxTrials: z.number().int().min(1).max(100).optional(), maxMinutes: z.number().int().min(1).max(240).optional(), directions: z.number().int().min(1).max(4).optional(), localTrials: z.number().int().min(1).max(5).optional(), maxStepsPerCall: z.number().int().min(4).max(200).optional(), maxMinutesPerCall: z.number().int().min(1).max(60).optional() }).strict().optional() }).strict();
 function view(run) {
   if (!run) return null;
@@ -29,7 +29,7 @@ export default class SlaService extends TypertRemoteService {
   static inject = ['typert', 'agents', 'storageDomain', 'subagents', 'workingDirectory', 'shell', 'sandboxPolicy'];
   constructor(ctx) {
     super(ctx, 'sla');
-    this.tasks = new TaskRegistry();
+    this.tasks = new WorkflowRegistry();
     ctx.typert.register({ package: remote.package, face: 'host', schemas: [], model: { services: [], events: [], objects: [] }, invocations: remote.descriptors });
     this.calls = new Map();
     this.researchOwners = new Map();
@@ -95,8 +95,7 @@ export default class SlaService extends TypertRemoteService {
     } });
     await this.engine.recover();
   }
-  registerTask(task) { return this.tasks.register(task); }
-  registerWorkflow(workflow) { return this.tasks.registerWorkflow(workflow); }
+  registerWorkflow(workflow) { return this.tasks.register(workflow); }
   assertWritable(parent) {
     if (this.ctx.sandboxPolicy.resolve({ session: parent.session }).mode === 'read-only') throw new Error('当前会话是只读模式，未执行评价或写回。');
   }

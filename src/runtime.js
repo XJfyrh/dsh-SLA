@@ -1,12 +1,12 @@
 import path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
-import { defaults, settings, initializeResearch } from './research-state.js';
+import { defaults, settings, initializeResearch, validateRun } from './research-state.js';
 import { jsonValue } from './kernel.js';
 
 export class ExplorationRuntime {
-  constructor({ store, adapter, tasks, root, resolveWorkflow, selectWorkflow, migrateRecord = () => {}, maxTrials = defaults.maxTrials, maxMinutes = defaults.maxMinutes, directions = defaults.directions, localTrials = defaults.localTrials }) {
-    Object.assign(this, { store, adapter, tasks, root, resolveWorkflow, selectWorkflow, migrateRecord });
+  constructor({ store, adapter, tasks, root, resolveWorkflow, selectWorkflow, maxTrials = defaults.maxTrials, maxMinutes = defaults.maxMinutes, directions = defaults.directions, localTrials = defaults.localTrials }) {
+    Object.assign(this, { store, adapter, tasks, root, resolveWorkflow, selectWorkflow });
     this.defaults = settings({ maxTrials, maxMinutes, directions, localTrials });
     this.active = new Map();
     this.actions = new Map();
@@ -16,8 +16,7 @@ export class ExplorationRuntime {
   async recover() {
     for (const [key, saved] of this.store.entries()) {
       const record = structuredClone(saved);
-      this.migrateRecord(record);
-      if (record.id) initializeResearch(record, this.defaults);
+      validateRun(record);
       if (record.activeSince) {
         record.elapsedMs += Math.min(Math.max(0, Date.now() - record.activeSince), Math.max(0, record.timeLimitMs - record.elapsedMs));
         delete record.activeSince;
@@ -29,7 +28,7 @@ export class ExplorationRuntime {
         for (const call of record.invocations ?? []) if (call.status === 'running') call.status = 'interrupted';
         for (const review of record.reviews ?? []) if (review.status === 'running') { review.status = 'inconclusive'; review.error = '进程中断，未提交完整审查'; }
       }
-      if (record.root) {
+      if (record.workflow) {
         try { await this.workflow(record).recover(record); }
         catch (error) { record.status = 'blocked'; record.message = String(error.message ?? error); }
       }
@@ -59,13 +58,13 @@ export class ExplorationRuntime {
       const cwd = await this.adapter.directory(parent);
       const id = randomUUID();
       const config = settings(input.settings, this.defaults);
-      run = { formatVersion: 3, id, sessionId: parent.id, goal: input.text, notes: [], revision: 1, cwd, root: path.join(this.root, id), status: 'preparing', stage: 'snapshot', message: '正在选择适合目标的探索工作流', trials: [], invocations: [], attempts: 0, limit: config.maxTrials, elapsedMs: 0, timeLimitMs: config.maxMinutes * 60000, createdAt: new Date().toISOString(), adopted: false };
+      run = { id, sessionId: parent.id, goal: input.text, notes: [], revision: 1, cwd, root: path.join(this.root, id), status: 'preparing', stage: 'snapshot', message: '正在选择适合目标的探索工作流', trials: [], invocations: [], attempts: 0, limit: config.maxTrials, elapsedMs: 0, timeLimitMs: config.maxMinutes * 60000, createdAt: new Date().toISOString(), adopted: false };
       initializeResearch(run, config);
       await this.save(run);
       this.launch(run, parent);
     } else {
       if (!run) throw new Error('请先输入目标开始探索。');
-      initializeResearch(run, this.defaults);
+      validateRun(run);
       if (run.adoptionPending) throw new Error(run.message);
       if (input.action === 'pause' || input.action === 'stop') {
         if (live) live.restart = false;

@@ -16,8 +16,9 @@ export async function selectProjectWorkflow(engine, run, parent, signal) {
   if (changedFiles(files, await inventory(dir)).length) throw new Error('任务选择阶段修改了项目，未接受选择结果。');
   const selected = available.find(task => task.id === choice.taskId);
   if (!selected) throw new Error('没有适用的已安装任务扩展：' + choice.reason);
-  engine.tasks.get(selected);
+  const entry = engine.tasks.get(selected);
   run.task = { id: selected.id, version: selected.version, name: selected.name };
+  run.workflow = { kind: entry.task.kind, id: selected.id, version: selected.version };
   run.selectionReason = choice.reason;
   await engine.save(run);
 }

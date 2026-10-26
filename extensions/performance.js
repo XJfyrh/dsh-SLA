@@ -1,6 +1,7 @@
+import { defineCodeWorkflow } from '../src/workflow.js';
 import { intro, scoutSchema } from '../src/prompts.js';
 import { parseResult } from '../src/evaluation.js';
-import { validateEvaluation } from '../src/task-registry.js';
+import { validateEvaluation } from '../src/workflow-registry.js';
 import { preservedBehaviorReview } from './code-review.js';
 import { codeRuntimeGuidance } from './code-runtime.js';
 
@@ -22,7 +23,7 @@ export function parseEvaluation(result) {
   return { ...value, display: String(Number(value.score.toPrecision(6))) };
 }
 
-export const performanceTask = {
+export const performanceWorkflow = defineCodeWorkflow({
   id: 'code-performance', version: '1.1.0', name: '代码性能',
   description: '改善可运行代码的耗时、内存或其他可测量成本；保持正确行为。适用于明确的速度、资源或效率目标。',
   prepare: { schema: scoutSchema, prompt: scoutPrompt },
@@ -31,7 +32,7 @@ export const performanceTask = {
   async evaluate({ execute }) { return parseEvaluation(await execute('node .sla/evaluate.mjs')); },
   validateBaseline(result) { if (!result.valid) throw new Error('初始项目未通过建立的正确性检查：' + result.summary); },
   compare(candidate, reference) { return candidate.score < reference.score ? 'better' : candidate.score === reference.score ? 'equal' : 'worse'; },
-};
+});
 
 export const inject = ['sla'];
-export function apply(ctx) { ctx.effect(() => ctx.sla.registerTask(performanceTask)); }
+export function apply(ctx) { ctx.effect(() => ctx.sla.registerWorkflow(performanceWorkflow)); }
