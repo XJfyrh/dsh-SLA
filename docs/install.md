@@ -1,40 +1,45 @@
-# 安装与运行
+# 安装 SLA
 
-## 安装 npm 包
+准备好 Node.js 24、Git 和 DeepSeek Harness 0.2.1-rc.2，并在 Harness 中配置可用模型。
 
-前提：Node.js 24、Git、DeepSeek Harness 0.2.1-rc.2；Harness 已配置模型。插件沿用会话的模型、权限、输出额度和用量统计。
+## 加入正在使用的 Harness
 
 ```sh
 dsh plugin --profile web add dsh-sla@0.4.0
 dsh web
 ```
 
-`web` 是 profile 名，已有自定义 profile 时替换为该名称。安装后重启该 profile 的 Host，刷新 Web 页面。打开项目，以“工作区内修改”模式新建会话，选择“持续探索 · SLA”。插件需要读取项目、创建独立候选并执行检查；采用代码时才写回原项目。
+`web` 是 profile 名；使用自定义 profile 时替换为它的名称。已有 Web 服务请重启，再刷新页面。
 
-## 独立体验 profile
+在工作区选择项目，新建会话，选择 **持续探索 · SLA**。发送一个改进目标，便会开始调查与探索。第一次可以跟着[使用指南](usage.md)尝试修复一个小缺陷。
 
-首次创建一个新名称的 profile：
+## 单独建一个体验环境
+
+首次创建名为 `sla-demo` 的 profile：
 
 ```sh
 dsh --profile sla-demo --from-default-profile web
 ```
 
-退出后安装并启动：
+退出后安装插件，再启动：
 
 ```sh
 dsh plugin --profile sla-demo add dsh-sla@0.4.0
 dsh --profile sla-demo
 ```
 
-`--from-default-profile` 会重建指定 profile，首次创建后不再重复使用。模型配置由 DSH 管理。
+以后启动只用最后一条命令。`--from-default-profile` 会重建指定 profile，创建后不再重复使用。模型仍在 Harness 中配置。
 
-## 试一个目标
+## 获取练习项目
 
-从包内 `examples/clamp-bug` 复制一个目录作为工作区，发送：
+在一个空目录中下载并解压 npm 包：
 
-> 修复 clamp(0, -5, 5) 错误返回 -5 的问题，保持其他行为，不增加依赖。
+```sh
+npm pack dsh-sla@0.4.0
+tar -xf dsh-sla-0.4.0.tgz
+```
 
-运行时可暂停，或在主对话补充约束。检查面板中的结果与改动后点击采用；原项目若已变化，插件会停止写回。探索状态和证据位于 `~/.dsh/sla-artifacts/<探索 ID>/`，详细会话可使用 DSH 导出。
+示例在 `package/examples/`。复制其中一个项目到自己的工作目录，再通过 Harness 添加为工作区。
 
 ## 卸载
 
@@ -42,18 +47,6 @@ dsh --profile sla-demo
 dsh plugin --profile web remove dsh-sla
 ```
 
-重启该 profile。卸载不删除探索证据目录。
+重启对应 profile。已有证据仍保留在 `~/.dsh/sla-artifacts/`。
 
-## 从源码开发
-
-在仓库根目录执行：
-
-```sh
-npm ci
-npm run build:client
-dsh plugin --profile sla-demo add /absolute/path/to/dsh-SLA
-```
-
-最后一条把路径替换为当前仓库的绝对路径（Windows 可使用 `E:/projects/dsh-SLA`）。本地路径由 DSH 包管理器链接；修改 Host 后重启，修改界面后重新构建并刷新。发布验证则必须安装实际 `.tgz`，不能用链接安装代替。
-
-安装机制依据 [DSH 官方插件发布文档](https://github.com/deepseek-ai/deepseek-harness/blob/687f282e8625c6b8d11ff58211a90524be2e4317/docs/user/develop/basic/publish.md)。
+开发者使用源码安装，见[参与开发](development.md)。

@@ -1,4 +1,4 @@
-# 开发与发布
+# 参与开发
 
 使用 Node.js 24；在仓库根目录执行：
 
@@ -12,6 +12,16 @@ npm run check:package
 ```
 
 测试使用固定响应与临时项目，覆盖候选接续、评价事务、权限、交付恢复和文件写入。公共类型从包导出路径导入并使用真实 DSH 类型检查。`client.js` 是生成物，源文件是 `src/client-factory.js`、`src/client-state.js` 和 `src/presentation.js`；生成后不应出现未提交差异。
+
+## 在 Harness 中开发
+
+先按[安装说明](install.md)创建一个开发 profile，再链接仓库：
+
+```sh
+dsh plugin --profile sla-demo add /absolute/path/to/dsh-SLA
+```
+
+替换为仓库绝对路径，Windows 可使用 `E:/projects/dsh-SLA`。修改 Host 后重启；修改界面后执行 `npm run build:client` 并刷新。
 
 ## 真实 Host 验证
 

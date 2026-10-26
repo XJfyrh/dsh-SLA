@@ -1,61 +1,48 @@
 # DSH SLA · 持续探索
 
-**告诉它你希望什么变好，让它调查项目、建立判断依据、尝试不同办法，交出可检查、可采用的结果。**
+**给项目一句改进目标，让它调查、尝试、比较，把更好的结果交给你。**
 
-DSH SLA 是 DeepSeek Harness 的社区插件，受 Stateless Language Agents 论文启发。你从一句目标开始，插件组织独立的调查、规划、执行和复验；候选、失败与改进方向保存在会话之外，供下一轮接续。
+DSH SLA 是 DeepSeek Harness 的社区插件。你不必先写好实验方案和评估脚本：描述希望改进的地方，插件会调查项目、建立判断依据，沿不同方向持续尝试。你可以随时补充要求，最后查看结果与改动，决定是否采用。
 
 > 让这个项目在大数组上运行得更快，保持现有行为，不增加依赖。
 
 ![持续探索的结果面板](https://unpkg.com/dsh-sla@0.4.0/docs/images/exploration.png)
 
-参数工作流验收界面：查看结果、检查与候选内容。
+检索参数示例的探索结果。
+
+## 先试什么
+
+| 你想做的事 | 可以这样开始 |
+| --- | --- |
+| 优化代码性能 | “让大数组去重更快，保持输入顺序和现有行为。” |
+| 修复缺陷 | “修复 clamp(0, -5, 5) 错误返回 -5 的问题，保持其他行为。” |
+| 调整检索参数 | “利用已有评测集改善检索效果。” |
+
+代码任务会给出可采用的改动；内置检索参数示例会交付 JSON 参数包。[使用指南](https://unpkg.com/dsh-sla@0.4.0/docs/usage.md)带你从一个小项目跑通完整过程。
 
 ## 安装
 
-需要 **DeepSeek Harness 0.2.1-rc.2、Node.js 24 和 Git**。先在 Harness 配置可用模型，再把插件安装到你使用的 profile：
+需要 **DeepSeek Harness 0.2.1-rc.2、Node.js 24 和 Git**，并已在 Harness 配置模型：
 
 ```sh
 dsh plugin --profile web add dsh-sla@0.4.0
 dsh web
 ```
 
-已有 Web 服务请重启，然后刷新页面。在项目中新建会话，选择 **持续探索 · SLA**，发送目标即可。调查和实验会话由插件创建，模式菜单只有一个 SLA 入口。
+已有服务请重启并刷新页面。在项目中新建会话，选择 **持续探索 · SLA**，发送目标。使用其他 profile 或需要卸载，见[安装说明](https://unpkg.com/dsh-sla@0.4.0/docs/install.md)。
 
-使用自定义 profile、卸载或从源码开发，见[安装说明](https://unpkg.com/dsh-sla@0.4.0/docs/install.md)。本次发布的 Host 集成在 Windows + Web 验证；其他系统与桌面分发见[验证范围](https://unpkg.com/dsh-sla@0.4.0/docs/validation.md)。
+## 在探索中保持掌控
 
-## 可以做什么
+- **看结果再采用**：面板展示当前候选、实际检查和文件改动。采用前再次复验，项目已有新改动时停止覆盖。
+- **随时调整方向**：直接在对话里补充要求，也可以暂停、继续或调整探索额度。
+- **让尝试积累下来**：每个方向保留自己的候选和反馈，下一轮可以接着做；失败也会成为规划依据。
 
-| 工作流 | 可以直接发送的目标 | 交付内容 |
-| --- | --- | --- |
-| 代码性能 | 让大数组去重更快，保持输入顺序与已有行为 | 通过正确性检查和性能复验的代码候选 |
-| 缺陷修复 | 修复 `clamp(0, -5, 5)` 错误返回 `-5`，保持其他行为 | 复现缺陷后得到的修复与回归检查 |
-| 检索参数 | 利用已有评测集改善检索效果 | 经固定评测器测量的 JSON 参数包 |
+模型用量在 DSH 中查看。代码工作流优先适合无依赖或依赖由系统提供的小型项目；如何选择任务、调整额度和处理停顿，见[使用指南](https://unpkg.com/dsh-sla@0.4.0/docs/usage.md)。
 
-从 [duplicates-baseline](https://unpkg.com/dsh-sla@0.4.0/examples/duplicates-baseline/README.md)、[clamp-bug](https://unpkg.com/dsh-sla@0.4.0/examples/clamp-bug/README.md) 或 [retrieval-parameters](https://unpkg.com/dsh-sla@0.4.0/examples/retrieval-parameters/README.md) 复制一个练习项目开始。检索示例使用小型英文词项评测集，展示参数工作流接入方式。
+## 加入自己的工作流
 
-顶部 **持续探索** 入口打开右侧面板：先看当前结果、改动理由和检查，再展开实验与文件差异。可以在主对话补充要求、暂停、继续，也可以在面板调整探索设置。
+方法指引用 DSH Skill，领域流程用普通 DSH 插件。SLA 提供统一注册入口，可复用代码工作流，也可定义自己的制品、评价与交付方式。
 
-**采用由你决定。** 采用代码前会复验候选，并核对原项目；原项目已有新改动时停止覆盖。参数工作流生成独立交付包。模型用量、完整会话日志与导出使用 DSH 原有入口。
+[扩展开发](https://unpkg.com/dsh-sla@0.4.0/docs/extensions.md) · [架构](https://unpkg.com/dsh-sla@0.4.0/docs/core.md) · [参与开发](https://unpkg.com/dsh-sla@0.4.0/docs/development.md)
 
-## 怎样持续探索
-
-插件保留各方向的局部候选，让暂时落后全局最佳的方法继续发展。下一轮规划会看到成功、失败与未完成的依据。补充要求或发现遗漏检查时，先按新依据重测候选，再更新排序。
-
-默认每轮 **8 次尝试、20 分钟**；每次模型调用 **24 个工作步 + 1 个结果提交步、5 分钟**。额度可在面板修改，继续会增加一轮有限额度。模型调用会消耗你在 DSH 配置的 API 用量，时间与步数不是费用硬上限。
-
-当前为串行多方向探索。代码工作流使用文件副本，跳过依赖目录、构建目录和 `.env`，遇到链接停止；优先用于无依赖或依赖由系统提供的子项目。文件副本不提供进程或网络隔离。评价结论覆盖实际执行的检查，完整边界见[核心规则](https://unpkg.com/dsh-sla@0.4.0/docs/core.md)。
-
-## 扩展
-
-方法指引使用 DSH Skill，程序能力使用普通 DSH 插件。扩展统一调用 `ctx.sla.registerWorkflow()`：
-
-- `defineCodeWorkflow()`：复用调查、代码候选、独立审查和文件交付，定义领域评价。
-- `defineWorkflow()`：定义 JSON 等制品，自行组合准备、探索、评价升级与交付。
-
-两者共用尝试、制品、观测与决定的内核。见[扩展开发](https://unpkg.com/dsh-sla@0.4.0/docs/extensions.md)。
-
-## 项目资料
-
-- [开发与验证](https://unpkg.com/dsh-sla@0.4.0/docs/development.md) · [当前验证结果](https://unpkg.com/dsh-sla@0.4.0/docs/validation.md)
-- [论文与实现范围](https://unpkg.com/dsh-sla@0.4.0/docs/research.md)
-- [MIT License](https://unpkg.com/dsh-sla@0.4.0/LICENSE)
+设计受 Stateless Language Agents 启发。[论文与实现范围](https://unpkg.com/dsh-sla@0.4.0/docs/research.md) · [发布验证](https://unpkg.com/dsh-sla@0.4.0/docs/validation.md) · [MIT License](https://unpkg.com/dsh-sla@0.4.0/LICENSE)
