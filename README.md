@@ -25,7 +25,7 @@ DSH SLA 是 DeepSeek Harness 的社区插件。你不必先写好实验方案和
 需要 **DeepSeek Harness 0.2.1-rc.2、Node.js 24 和 Git**，并已在 Harness 配置模型：
 
 ```sh
-dsh plugin --profile web add dsh-sla@0.4.1
+dsh plugin --profile web add dsh-sla@0.4.2
 dsh web
 ```
 

@@ -55,6 +55,7 @@ test('a late poll cannot overwrite adoption and duplicate actions are not submit
   const entry = store.forSession(SessionId('a'));
   const stop = entry.subscribe(() => {});
   const action = entry.action('adopt');
+  assert.equal(entry.getSnapshot().pendingAction, 'adopt');
   await entry.action('adopt');
   assert.equal(calls, 1);
   write.resolve(runFixture({ adopted: true }));
@@ -63,6 +64,7 @@ test('a late poll cannot overwrite adoption and duplicate actions are not submit
   await flush();
   assert.equal(present(entry.getSnapshot().run).adopted, true);
   assert.equal(entry.getSnapshot().busy, false);
+  assert.equal(entry.getSnapshot().pendingAction, null);
   stop(); store.dispose();
 });
 
@@ -85,6 +87,7 @@ test('failed action retains the current result and reports its reason', async ()
   await entry.action('adopt');
   assert.equal(present(entry.getSnapshot().run).id, 'a');
   assert.equal(entry.getSnapshot().error, 'source changed');
+  assert.equal(entry.getSnapshot().pendingAction, null);
   assert.equal(entry.getSnapshot().busy, false);
   stop(); store.dispose();
 });

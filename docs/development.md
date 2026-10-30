@@ -70,7 +70,7 @@ dsh plugin --profile sla-demo add /absolute/path/to/dsh-SLA
 ```powershell
 $env:DSH_HOME = Join-Path (Get-Location) 'artifacts/dsh-acceptance'
 dsh --profile sla-release-check --from-default-profile web --dump-config
-$package = (Resolve-Path ./artifacts/package/dsh-sla-0.4.1.tgz).Path
+$package = (Resolve-Path ./artifacts/package/dsh-sla-0.4.2.tgz).Path
 dsh plugin --profile sla-release-check add $package
 dsh --profile sla-release-check --no-open --port 3092
 ```
@@ -115,7 +115,7 @@ pnpm 会缓存同版本、同路径的 tarball 安装。反复验收本地包时
 
 ```sh
 npm pack --pack-destination artifacts
-npm publish ./artifacts/dsh-sla-0.4.1.tgz --access public --registry https://registry.npmjs.org
+npm publish ./artifacts/dsh-sla-0.4.2.tgz --access public --registry https://registry.npmjs.org
 ```
 
 发布前完成回归、Host tarball 安装和内容检查。发布后从 npm 重新下载，核对 integrity 并在独立 profile 安装。版本发布后不可原样覆盖。

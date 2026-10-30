@@ -4,7 +4,7 @@ import type { ISidebarRight } from '@deepseek-ai/dsh-client-ui-sidebar-right/cli
 import type { Action, Run } from './data.js';
 import { message } from './errors.js';
 export type RunAction = Action | Action['action'];
-export interface RunSnapshot { run?: Run | null; error: string; loadError: string; busy: boolean }
+export interface RunSnapshot { run?: Run | null; error: string; loadError: string; busy: boolean; pendingAction: Action['action'] | null }
 export interface RunEntry {
   getSnapshot(): RunSnapshot;
   subscribe(listener: () => void): () => void;
@@ -18,7 +18,7 @@ export function createRunStore(read: (id: SessionId) => Promise<Run | null>, mut
   function forSession(sessionId: SessionId): RunEntry {
     const existing = sessions.get(sessionId);
     if (existing) return existing;
-    let snapshot: RunSnapshot = { run: undefined, error: '', loadError: '', busy: false };
+    let snapshot: RunSnapshot = { run: undefined, error: '', loadError: '', busy: false, pendingAction: null };
     let timer: ReturnType<typeof setTimeout> | undefined, generation = 0;
     const listeners = new Set<() => void>();
     const publish = (patch: Partial<RunSnapshot>) => {
@@ -53,7 +53,7 @@ export function createRunStore(read: (id: SessionId) => Promise<Run | null>, mut
       async action(action) {
         if (disposed || snapshot.busy) return;
         generation++; clearTimeout(timer);
-        publish({ busy: true, error: '', loadError: '' });
+        publish({ busy: true, pendingAction: typeof action === 'string' ? action : action.action, error: '', loadError: '' });
         try {
           const run = await mutate(sessionId, action);
           if (disposed) return;
@@ -62,7 +62,7 @@ export function createRunStore(read: (id: SessionId) => Promise<Run | null>, mut
         } catch (error) {
           if (!disposed) publish({ error: message(error) });
         } finally {
-          if (!disposed) publish({ busy: false });
+          if (!disposed) publish({ busy: false, pendingAction: null });
           schedule();
         }
       },
