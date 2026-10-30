@@ -1,0 +1,98 @@
+{
+  "date": "2026-10-30",
+  "implementationRevision": "9bd3fb483a3d59d9f7412e1c5e10355c367ebee1",
+  "publication": "local commits only",
+  "environment": {
+    "platform": "Windows",
+    "node": "24.19.0",
+    "dsh": "0.2.1-rc.2",
+    "installation": "npm tarball in isolated DSH_HOME and Web profile"
+  },
+  "baseline": {
+    "passed": 120,
+    "failed": 0,
+    "skipped": 0
+  },
+  "regression": {
+    "passed": 123,
+    "failed": 0,
+    "skipped": 0
+  },
+  "strictTypes": {
+    "programs": 8,
+    "coveredFiles": 67,
+    "host": true,
+    "client": true,
+    "tests": true,
+    "scripts": true,
+    "probes": true,
+    "generatedWorkflowConsumer": true,
+    "generatedClientConsumer": true,
+    "skipLibCheck": false
+  },
+  "packaging": {
+    "productionOnlyRuntimeImports": true,
+    "allExports": true,
+    "browserModuleLoader": true,
+    "embeddedSources": true,
+    "installedOutputFilesMatched": 150
+  },
+  "host": {
+    "artifactSha256": "49fdeaf6b6baba5cb20ed50b87f5e91b97a4ef3bddc345e8b66d3fb72621168b",
+    "workflow": {
+      "passed": true,
+      "fixedResponses": 4,
+      "projectUnchanged": true,
+      "records": {
+        "artifacts": 2,
+        "observations": 3,
+        "decisions": 1
+      },
+      "delivered": true
+    },
+    "presentation": {
+      "passed": true,
+      "fixedResponses": 2
+    },
+    "researcher": {
+      "passed": true,
+      "finalStepWritesDenied": true,
+      "nativeReadonlyAdoptionBlocked": true,
+      "pluginLifecycleVerified": true,
+      "privateToolsDisposed": true,
+      "stepLimitReported": true,
+      "finalSubmissionVerified": true,
+      "finalStepCancellationVerified": true,
+      "ptcParentVerified": true,
+      "skillLoaded": true,
+      "projectSkillLoaded": true,
+      "fixedResponses": 219
+    },
+    "uiPreparationFixedResponses": 4
+  },
+  "web": {
+    "artifactPreview": true,
+    "adopted": true,
+    "attemptsPreserved": 1,
+    "settingsAfterReload": 9,
+    "passed": true,
+    "receiptMatchesSealedArtifact": true,
+    "statusAndCandidateVisible": true,
+    "settingsSaved": true,
+    "consoleErrors": 0
+  },
+  "paidModelCalls": 0,
+  "remainingJavaScriptFiles": 6,
+  "newRegressionTests": [
+    "malformed native archive events are rejected before token usage calculation",
+    "campaign and archive-only inputs are validated separately",
+    "invalid campaign input produces finished.json without starting a model run"
+  ],
+  "notRun": [
+    "real-model long-horizon exploration",
+    "Linux",
+    "macOS",
+    "desktop distribution",
+    "npm publish"
+  ]
+}
