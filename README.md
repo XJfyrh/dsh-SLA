@@ -43,7 +43,7 @@ dsh web
 
 方法指引用 DSH Skill，领域流程用普通 DSH 插件。SLA 提供统一注册入口，可复用代码工作流，也可定义自己的制品、评价与交付方式。
 
-项目使用严格 TypeScript 开发，发布可直接运行的 JS、同源类型声明和 source map。源码开发先执行 `npm ci`、`npm run build`；扩展可从 `dsh-sla/workflow` 导入类型，运行时无需 TypeScript。
+插件实现、测试和工程脚本均使用严格 TypeScript，发布可直接运行的 JS、同源类型声明和 source map。源码开发先执行 `npm ci`、`npm run build`；扩展可从 `dsh-sla/workflow` 导入类型，运行时无需 TypeScript。
 
 [扩展开发](docs/extensions.md) · [架构](docs/core.md) · [参与开发](docs/development.md)
 

@@ -1,15 +1,18 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, writeFile, rm, rename, symlink, lstat } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { lstat, mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { execFile } from 'node:child_process';
+import type { TestContext } from 'node:test';
+import { test } from 'node:test';
 import { promisify } from 'node:util';
-import { adopt, recoverAdoption, snapshot, inventory, copyEvaluation, verifyEvaluation } from '../dist/src/workspace.js';
 import { filesSchema } from '../dist/src/data.js';
 import { filePayload } from '../dist/src/file-artifacts.js';
+import { adopt, copyEvaluation, inventory, recoverAdoption, snapshot, verifyEvaluation } from '../dist/src/workspace.js';
+import { parseJson } from '../scripts/json.ts';
+import { candidateFixture, object, runFixture } from './state-fixtures.ts';
 
-async function adoptionFixture(t) {
+async function adoptionFixture(t: TestContext) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'sla-adoption-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const cwd = path.join(root, 'project');
@@ -19,7 +22,7 @@ async function adoptionFixture(t) {
   const sourceFiles = await snapshot(cwd, baselineDir);
   await snapshot(cwd, candidate);
   for (const name of ['a', 'b']) await writeFile(path.join(candidate, name + '.txt'), 'candidate-' + name);
-  return { root, cwd, sourceFiles, baselineDir, best: { dir: candidate }, adopted: false };
+  return { ...runFixture(), root, cwd, sourceFiles, baselineDir, best: { ...candidateFixture(), dir: candidate }, adopted: false };
 }
 
 test('special filenames survive snapshots, frozen checks, adoption and journal recovery', async t => {
@@ -29,8 +32,8 @@ test('special filenames survive snapshots, frozen checks, adoption and journal r
   await snapshot(run.cwd, run.best.dir);
   assert.equal(Object.hasOwn(run.sourceFiles, '__proto__'), true);
   assert.equal(await readFile(path.join(run.baselineDir, '__proto__'), 'utf8'), 'original');
-  assert.deepEqual(filesSchema.parse(JSON.parse(JSON.stringify(run.sourceFiles))), run.sourceFiles);
-  assert.deepEqual(filePayload({ kind: 'files', payload: { directory: run.cwd, files: run.sourceFiles } }).files, run.sourceFiles);
+  assert.deepEqual(filesSchema.parse(parseJson(JSON.stringify(run.sourceFiles))), run.sourceFiles);
+  assert.deepEqual(filePayload({ kind: 'files', digest: 'fixture', payload: { directory: run.cwd, files: run.sourceFiles } }).files, run.sourceFiles);
   await mkdir(path.join(run.cwd, '.sla'));
   await writeFile(path.join(run.cwd, '.sla', '__proto__'), 'frozen check');
   const frozen = await copyEvaluation(run.cwd, run.best.dir);
@@ -44,9 +47,9 @@ test('special filenames survive snapshots, frozen checks, adoption and journal r
   await assert.rejects(readFile(path.join(run.cwd, 'constructor')), { code: 'ENOENT' });
   await recoverAdoption(run);
   assert.equal(run.adopted, true); assert.equal(run.adoptionPending, false);
-  const journal = JSON.parse(await readFile(path.join(run.root, 'adoption.json'), 'utf8'));
-  assert.equal(Object.hasOwn(journal.before, '__proto__'), true);
-  assert.equal(Object.hasOwn(journal.after, '__proto__'), true);
+  const journal = object(parseJson(await readFile(path.join(run.root, 'adoption.json'), 'utf8')));
+  assert.equal(Object.hasOwn(object(journal.before), '__proto__'), true);
+  assert.equal(Object.hasOwn(object(journal.after), '__proto__'), true);
 });
 
 test('a newly added prototype-named file rolls back and can be adopted on retry', async t => {

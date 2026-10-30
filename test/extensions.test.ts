@@ -1,9 +1,11 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { WorkflowRegistry, validateEvaluation, compare } from '../dist/src/workflow-registry.js';
-import { performanceWorkflow } from '../dist/extensions/performance.js';
+import { test } from 'node:test';
 import { bugfixWorkflow } from '../dist/extensions/bugfix.js';
+import { performanceWorkflow } from '../dist/extensions/performance.js';
 import { parseResult } from '../dist/src/evaluation.js';
+import { WorkflowRegistry, compare, validateEvaluation } from '../dist/src/workflow-registry.js';
+import { shellResult } from './runtime-fixtures.ts';
+import { object } from './state-fixtures.ts';
 
 test('registry rejects duplicates, binds exact version, disposes one registration only', () => {
   const tasks = new WorkflowRegistry();
@@ -21,14 +23,17 @@ test('registry rejects duplicates, binds exact version, disposes one registratio
 test('evaluation accepts categorical results, refuses contradictory bugfix evidence', async () => {
   assert.equal(validateEvaluation({ valid: true, summary: 'tests passed', display: '修复通过' }).score, undefined);
   assert.throws(() => validateEvaluation({ valid: true, summary: 'x', score: NaN }), /数字/);
-  assert.throws(() => compare({ compare: () => true }, {}, {}, {}), /扩展比较/);
-  const execute = async () => ({ exitCode: 0, stdout: { text: 'SLA_RESULT '+JSON.stringify({ valid: true, reproduced: true, regressionPassed: true, summary: 'false success' }), truncated: false }, stderr: { text: '' } });
-  await assert.rejects(bugfixWorkflow.evaluate({ execute }), /相互矛盾/);
+  const invalidPolicy = { ...performanceWorkflow, compare: () => true };
+  const evaluation = { valid: true, summary: 'measured' };
+  // @ts-expect-error An invalid comparator return must fail at runtime.
+  assert.throws(() => compare(invalidPolicy, evaluation, evaluation, { ready: true, criterion: 'fixture' }), /扩展比较/);
+  const execute = async () => shellResult('SLA_RESULT '+JSON.stringify({ valid: true, reproduced: true, regressionPassed: true, summary: 'false success' }));
+  await assert.rejects(bugfixWorkflow.evaluate({ execute, cwd: 'fixture', criteria: { ready: true, criterion: 'fixture' }, signal: new AbortController().signal }), /相互矛盾/);
 });
 
 test('completed negative checks stay distinct from evaluation process failures', () => {
-  const result = { exitCode: 0, stdout: { text: 'SLA_RESULT {"valid":false,"summary":"target bug reproduced"}', truncated: false }, stderr: { text: '' } };
-  assert.equal(parseResult(result).valid, false);
+  const result = shellResult('SLA_RESULT {"valid":false,"summary":"target bug reproduced"}');
+  assert.equal(object(parseResult(result)).valid, false);
   assert.throws(() => parseResult({ ...result, exitCode: 1 }), /exit=1.*target bug reproduced/);
   assert.throws(() => parseResult({ ...result, timedOut: true }), /评价没有完成/);
 });

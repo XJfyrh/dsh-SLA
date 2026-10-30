@@ -1,7 +1,6 @@
 import type { SessionId } from '@deepseek-ai/dsh-session/types';
 import type { ConversationTimelineSnapshot, TurnLocation } from '@deepseek-ai/dsh-client-ui-conversation/client';
-import type { Context } from '@deepseek-ai/cordis';
-import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client';
+import type { ISidebarRight } from '@deepseek-ai/dsh-client-ui-sidebar-right/client';
 import type { Action, Run } from './data.js';
 import { message } from './errors.js';
 export type RunAction = Action | Action['action'];
@@ -92,6 +91,6 @@ export function ownsRun(turn: TurnLocation | undefined, run: Run | null | undefi
     && latestTurn !== undefined && turn.turn === latestTurn;
 }
 
-export function collapseAdoptedPanel(sidebar: Context['sidebarRight'], sessionId: SessionId, tabId: string) {
+export function collapseAdoptedPanel(sidebar: Pick<ISidebarRight, 'mounted' | 'active' | 'isExpanded' | 'toggleExpanded'>, sessionId: SessionId, tabId: string) {
   if (sidebar.mounted.getSnapshot() === sessionId && sidebar.active()?.id === tabId && sidebar.isExpanded()) sidebar.toggleExpanded();
 }
